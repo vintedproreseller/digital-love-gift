@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>A Gift For You 💝</title>
+  <link rel="stylesheet" href="/css/style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Sacramento&display=swap" rel="stylesheet"/>
+  <!-- QR code library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="gift-page">
+
+<!-- ══ PETAL OVERLAY — cinematic opening ════════════════════ -->
+<div id="petal-overlay" class="petal-overlay hidden">
+  <div class="petal-overlay-text">A gift awaits you…</div>
+</div>
+
+<!-- ══ HEART LOCK SCREEN ══════════════════════════════════════ -->
+<div id="lock-screen" class="lock-screen hidden">
+  <div class="lock-card">
+    <div class="heart-lock-wrap">
+      <svg id="heart-lock-svg" class="heart-lock" viewBox="0 0 120 110" xmlns="http://www.w3.org/2000/svg">
+        <path id="heart-path" d="M60 95 C60 95 10 60 10 30 C10 15 22 5 35 5 C44 5 52 10 60 18 C68 10 76 5 85 5 C98 5 110 15 110 30 C110 60 60 95 60 95Z" fill="#f5c6d0" stroke="#c96a7a" stroke-width="2"/>
+        <rect id="lock-body" x="44" y="52" width="32" height="24" rx="5" fill="#c96a7a"/>
+        <path id="lock-shackle" d="M52 52 L52 40 Q52 30 60 30 Q68 30 68 40 L68 52" fill="none" stroke="#c96a7a" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="60" cy="62" r="4" fill="white"/>
+        <rect x="58" y="64" width="4" height="6" rx="1" fill="white"/>
+      </svg>
+      <div id="lock-shake-hint" class="lock-shake-hint">This gift is locked with love 🔒</div>
+    </div>
+
+    <h1 class="lock-title" id="lock-title">A gift awaits you</h1>
+    <p class="lock-sub" id="lock-sub">Enter the secret password to unlock it</p>
+
+    <div class="lock-suggestions">
+      <p class="suggestions-label">Hint ideas:</p>
+      <div class="suggestions-chips">
+        <span class="chip">📅 The day we met</span>
+        <span class="chip">💋 Our first kiss date</span>
+        <span class="chip">🌹 Our anniversary</span>
+      </div>
+    </div>
+
+    <div class="lock-input-wrap">
+      <input type="password" id="lock-input" class="lock-input" placeholder="Enter password…" maxlength="50"/>
+      <button class="lock-btn" id="lock-btn" onclick="unlockGift()">Unlock 💝</button>
+    </div>
+    <div id="lock-error" class="lock-error hidden">Wrong password 💔 Try again</div>
+  </div>
+</div>
+
+<!-- ══ ENVELOPE SCREEN ════════════════════════════════════════ -->
+<div id="envelope-screen" class="envelope-screen hidden">
+  <div class="env-wrap">
+    <div class="env" id="envelope">
+      <div class="env-back"></div>
+      <div class="env-left"></div>
+      <div class="env-right"></div>
+      <div class="env-bottom"></div>
+      <div class="env-flap" id="env-flap"></div>
+      <div class="env-letter" id="env-letter">
+        <span>💝</span>
+      </div>
+    </div>
+    <p class="env-hint">Tap to open your gift</p>
+  </div>
+</div>
+
+<!-- ══ LOADING ════════════════════════════════════════════════ -->
+<div id="gift-loading" class="gift-loading">
+  <div class="loading-hearts"><span>💝</span><span>💖</span><span>💗</span></div>
+  <p>Opening your gift…</p>
+</div>
+
+<!-- ══ ERROR ══════════════════════════════════════════════════ -->
+<div id="gift-error" class="gift-error hidden">
+  <div class="gift-error-card">
+    <span>💔</span><h2>Gift Not Found</h2>
+    <p>This link may be invalid or expired.</p>
+    <a href="/index.html" class="btn-primary">Create a New Gift</a>
+  </div>
+</div>
+
+<!-- ══ CONFETTI CANVAS ════════════════════════════════════════ -->
+<canvas id="confetti-canvas" class="confetti-canvas"></canvas>
+
+<!-- ══ MAIN GIFT ══════════════════════════════════════════════ -->
+<main id="gift-content" class="gift-content hidden">
+
+  <!-- HERO -->
+  <section class="gift-hero">
+    <div class="gift-occasion" id="gift-occasion"></div>
+    <h1 class="gift-title" id="gift-title"></h1>
+    <p class="gift-subtitle" id="gift-subtitle"></p>
+    <p class="gift-recipient">For <span id="gift-partner-name"></span>, with all my love</p>
+    <div id="days-counter" class="days-counter hidden">
+      <div class="days-number" id="days-number">0</div>
+      <div class="days-label">days together &amp; counting</div>
+    </div>
+    <div class="gift-date" id="gift-date"></div>
+  </section>
+
+  <!-- MAGAZINE PHOTO COLLAGE -->
+  <section class="gift-section fade-scroll" id="collage-section">
+    <div class="section-ornament">📸</div>
+    <h2 class="section-heading">Our Moments</h2>
+    <div class="magazine-collage" id="magazine-collage"></div>
+  </section>
+
+  <!-- LETTER with typewriter -->
+  <section class="gift-section fade-scroll">
+    <div class="section-ornament">💌</div>
+    <h2 class="section-heading">A Letter For You</h2>
+    <div class="gift-letter" id="gift-letter">
+      <div class="typewriter-text" id="typewriter-text"></div>
+    </div>
+    <button class="read-full-btn hidden" id="read-full-btn" onclick="showFullLetter()">Read full letter ↓</button>
+  </section>
+
+  <!-- Preview lock overlay (only shown in ?preview=true mode) -->
+  <div id="preview-lock" class="preview-lock hidden">
+    <h3>This is a preview</h3>
+    <p>The full letter, poem and personal reasons are waiting for you.</p>
+    <a href="#" id="preview-pay-btn" class="btn-primary btn-large">
+      <span>Unlock &amp; Share Your Gift — €5</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+
+  <!-- POEM -->
+  <section class="gift-section fade-scroll" id="poem-section">
+    <div class="section-ornament">✍️</div>
+    <h2 class="section-heading">Written Just For You</h2>
+    <div class="gift-poem" id="gift-poem"></div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section class="gift-section fade-scroll" id="timeline-section">
+    <div class="section-ornament">💫</div>
+    <h2 class="section-heading">Our Story</h2>
+    <div class="timeline" id="timeline"></div>
+  </section>
+
+  <!-- WHY I LOVE YOU -->
+  <section class="gift-section fade-scroll">
+    <div class="section-ornament">💕</div>
+    <h2 class="section-heading">Why I Love You</h2>
+    <div class="reasons-list" id="reasons-list"></div>
+  </section>
+
+  <!-- SONG -->
+  <section class="gift-section fade-scroll" id="song-section">
+    <div class="section-ornament">🎵</div>
+    <h2 class="section-heading">Our Song</h2>
+    <div class="song-card">
+      <div class="song-vinyl" id="song-vinyl">
+        <div class="vinyl-label">🎵</div>
+      </div>
+      <div class="song-info">
+        <div class="song-name" id="song-name"></div>
+        <div class="song-note" id="song-note"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL MESSAGE -->
+  <section class="gift-final fade-scroll">
+    <div class="final-hearts">💝</div>
+    <blockquote class="final-message" id="final-message"></blockquote>
+  </section>
+
+  <!-- REACTION PANEL -->
+  <section class="reaction-section fade-scroll">
+    <h3 class="reaction-title">How did this make you feel? 💭</h3>
+    <div class="reaction-emojis">
+      <button class="reaction-btn" data-emoji="💝" onclick="sendReaction('💝')">💝</button>
+      <button class="reaction-btn" data-emoji="💖" onclick="sendReaction('💖')">💖</button>
+      <button class="reaction-btn" data-emoji="😭" onclick="sendReaction('😭')">😭</button>
+      <button class="reaction-btn" data-emoji="🥹" onclick="sendReaction('🥹')">🥹</button>
+      <button class="reaction-btn" data-emoji="😍" onclick="sendReaction('😍')">😍</button>
+      <button class="reaction-btn" data-emoji="💍" onclick="sendReaction('💍')">💍</button>
+      <button class="reaction-btn" data-emoji="🫶" onclick="sendReaction('🫶')">🫶</button>
+    </div>
+    <div id="reaction-message-wrap" class="reaction-message-wrap hidden">
+      <textarea id="reaction-message" class="reaction-textarea" placeholder="Add a little message back… (optional)" maxlength="200" rows="2"></textarea>
+      <button class="btn-primary" style="margin-top:10px" onclick="submitReaction()">Send my reaction 💌</button>
+    </div>
+    <div id="reaction-sent" class="reaction-sent hidden">
+      <div class="reaction-sent-emoji" id="reaction-sent-emoji"></div>
+      <p>Your reaction has been sent! 💌</p>
+    </div>
+    <div id="reactions-display" class="reactions-display"></div>
+  </section>
+
+  <!-- SHARE + QR + PDF -->
+  <div class="share-bar fade-scroll">
+    <p>Share this gift</p>
+    <div class="share-actions">
+      <button class="share-btn" id="copy-link-btn" onclick="copyLink()">🔗 Copy Link</button>
+      <button class="share-btn share-btn-outline" onclick="toggleQR()">📱 QR Code</button>
+      <button class="pdf-btn" onclick="downloadPDF()">🖨️ Save as PDF</button>
+      <a href="/index.html" class="share-btn share-btn-outline">💝 Create Your Own</a>
+    </div>
+    <div id="qr-panel" class="qr-panel hidden">
+      <div id="qr-code"></div>
+      <p class="qr-hint">Scan to open · Print on a card 🖨️</p>
+    </div>
+  </div>
+
+  <footer class="footer">Made with love · Digital Love Gift</footer>
+</main>
+
+<script src="/js/gift.js"></script>
+</body>
+</html>

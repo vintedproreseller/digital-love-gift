@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Your Gift — Digital Love Gift</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Sacramento&display=swap" rel="stylesheet" />
+</head>
+<body class="create-page">
+
+  <!-- Cinematic loading overlay -->
+  <div id="loading-overlay" class="loading-overlay hidden">
+    <div class="loading-card">
+      <div class="loading-hearts"><span>💝</span><span>💖</span><span>💗</span></div>
+      <h2>Crafting your gift…</h2>
+      <p id="loading-msg">Reading your beautiful memories…</p>
+      <div class="loading-bar"><div class="loading-fill"></div></div>
+    </div>
+  </div>
+
+  <main class="create-main">
+    <a href="/index.html" class="back-link">← Back</a>
+    <div class="create-header fade-in">
+      <h1>Create Your <em>Love Gift</em></h1>
+      <p>The more you share, the more beautiful and personal the result.</p>
+    </div>
+
+    <form id="gift-form" class="gift-form" enctype="multipart/form-data">
+
+      <!-- 01 About Your Person -->
+      <div class="form-section">
+        <div class="form-section-label"><span class="form-section-num">01</span>About Your Person</div>
+        <div class="form-group">
+          <label for="partnerName">Their Name *</label>
+          <input type="text" id="partnerName" name="partnerName" placeholder="e.g. Sofia" required maxlength="50" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="occasion">Occasion *</label>
+            <select id="occasion" name="occasion" required>
+              <option value="">Select…</option>
+              <option value="Birthday">Birthday</option>
+              <option value="Anniversary">Anniversary</option>
+              <option value="Valentine's Day">Valentine's Day</option>
+              <option value="Just Because">Just Because</option>
+              <option value="Proposal">Proposal</option>
+              <option value="Long Distance">Long Distance</option>
+              <option value="Apology">Apology</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tone">Tone *</label>
+            <select id="tone" name="tone" required>
+              <option value="">Select…</option>
+              <option value="Romantic">Romantic 🥀</option>
+              <option value="Playful">Playful 😄</option>
+              <option value="Emotional">Emotional 🥹</option>
+              <option value="Poetic">Poetic ✍️</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="relationshipDate">When did your story begin? <span class="optional-tag">optional</span></label>
+          <input type="date" id="relationshipDate" name="relationshipDate" />
+          <span class="input-hint">Used for the days-together counter and timeline</span>
+        </div>
+      </div>
+
+      <!-- 02 Memories -->
+      <div class="form-section">
+        <div class="form-section-label"><span class="form-section-num">02</span>Your Shared Memories</div>
+        <p class="form-section-hint">Share 3 specific moments — the more vivid, the more beautiful the letter.</p>
+
+        <div class="form-group">
+          <div class="inspiration-row">
+            <label for="memory1">Memory 1 *</label>
+            <button type="button" class="inspiration-btn" data-target="memory1-example">💡 Inspire me</button>
+          </div>
+          <input type="text" id="memory1" name="memory1" placeholder="e.g. Our first date at the little café in the rain" required maxlength="200" />
+          <div class="inspiration-example" id="memory1-example">Our first date at that tiny café where neither of us could stop laughing — we talked for four hours and I missed my last train home.</div>
+          <div class="char-count" id="memory1-count">0 / 200</div>
+        </div>
+
+        <div class="form-group">
+          <div class="inspiration-row">
+            <label for="memory2">Memory 2 *</label>
+            <button type="button" class="inspiration-btn" data-target="memory2-example">💡 Inspire me</button>
+          </div>
+          <input type="text" id="memory2" name="memory2" placeholder="e.g. That road trip where we got completely lost" required maxlength="200" />
+          <div class="inspiration-example" id="memory2-example">That spontaneous road trip when our GPS died and we ended up finding the most beautiful village neither of us had ever heard of.</div>
+          <div class="char-count" id="memory2-count">0 / 200</div>
+        </div>
+
+        <div class="form-group">
+          <div class="inspiration-row">
+            <label for="memory3">Memory 3 *</label>
+            <button type="button" class="inspiration-btn" data-target="memory3-example">💡 Inspire me</button>
+          </div>
+          <input type="text" id="memory3" name="memory3" placeholder="e.g. The night we stayed up until sunrise talking" required maxlength="200" />
+          <div class="inspiration-example" id="memory3-example">That night on the balcony when we stayed up until sunrise just talking, laughing, and watching the stars disappear one by one.</div>
+          <div class="char-count" id="memory3-count">0 / 200</div>
+        </div>
+      </div>
+
+      <!-- 03 What You Love About Them -->
+      <div class="form-section">
+        <div class="form-section-label"><span class="form-section-num">03</span>What You Love About Them</div>
+        <p class="form-section-hint">3 things that make them uniquely wonderful to you.</p>
+
+        <div class="form-group">
+          <div class="inspiration-row">
+            <label for="trait1">Quality 1 *</label>
+            <button type="button" class="inspiration-btn" data-target="trait1-example">💡 Inspire me</button>
+          </div>
+          <input type="text" id="trait1" name="trait1" placeholder="e.g. The way you laugh at your own jokes" required maxlength="150" />
+          <div class="inspiration-example" id="trait1-example">The way you laugh at your own jokes before you even finish telling them — it's infectious every single time.</div>
+          <div class="char-count" id="trait1-count">0 / 150</div>
+        </div>
+
+        <div class="form-group">
+          <div class="inspiration-row">
+            <label for="trait2">Quality 2 *</label>
+            <button type="button" class="inspiration-btn" data-target="trait2-example">💡 Inspire me</button>
+          </div>
+          <input type="text" id="trait2" name="trait2" placeholder="e.g. Your kindness with strangers" required maxlength="150" />
+          <div class="inspiration-example" id="trait2-example">How you always notice when someone needs help — a stranger, a friend — and you just quietly do something about it without making a fuss.</div>
+          <div class="char-count" id="trait2-count">0 / 150</div>
+        </div>
+
+        <div class="form-group">
+          <div class="inspiration-row">
+            <label for="trait3">Quality 3 *</label>
+            <button type="button" class="inspiration-btn" data-target="trait3-example">💡 Inspire me</button>
+          </div>
+          <input type="text" id="trait3" name="trait3" placeholder="e.g. How you always know what I need" required maxlength="150" />
+          <div class="inspiration-example" id="trait3-example">The way you somehow always know whether I need a pep talk, a long hug, or just someone to sit quietly beside me.</div>
+          <div class="char-count" id="trait3-count">0 / 150</div>
+        </div>
+      </div>
+
+      <!-- 04 Timeline -->
+      <div class="form-section">
+        <div class="form-section-label"><span class="form-section-num">04</span>Your Story Timeline <span class="optional-tag">optional · up to 3 milestones</span></div>
+        <p class="form-section-hint">Key moments — first kiss, moving in, a special trip, a proposal…</p>
+        <div class="timeline-entry">
+          <div class="form-row">
+            <div class="form-group"><label>Date</label><input type="date" name="timelineDate1" /></div>
+            <div class="form-group"><label>What happened</label><input type="text" name="timelineEvent1" placeholder="e.g. Our first kiss" maxlength="100" /></div>
+          </div>
+        </div>
+        <div class="timeline-entry">
+          <div class="form-row">
+            <div class="form-group"><label>Date</label><input type="date" name="timelineDate2" /></div>
+            <div class="form-group"><label>What happened</label><input type="text" name="timelineEvent2" placeholder="e.g. We moved in together" maxlength="100" /></div>
+          </div>
+        </div>
+        <div class="timeline-entry">
+          <div class="form-row">
+            <div class="form-group"><label>Date</label><input type="date" name="timelineDate3" /></div>
+            <div class="form-group"><label>What happened</label><input type="text" name="timelineEvent3" placeholder="e.g. Our trip to Paris" maxlength="100" /></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 05 Your Song -->
+      <div class="form-section">
+        <div class="form-section-label"><span class="form-section-num">05</span>Your Song <span class="optional-tag">optional</span></div>
+        <div class="form-group">
+          <label for="song">Song Name / Artist</label>
+          <input type="text" id="song" name="song" placeholder="e.g. Perfect by Ed Sheeran" maxlength="200" />
+        </div>
+        <div class="form-group">
+          <label for="songUrl">YouTube link <span class="optional-tag">enables embedded player</span></label>
+          <input type="url" id="songUrl" name="songUrl" placeholder="https://www.youtube.com/watch?v=..." />
+        </div>
+      </div>
+
+      <!-- 06 Photos -->
+      <div class="form-section">
+        <div class="form-section-label"><span class="form-section-num">06</span>Your Photos <span class="optional-tag">optional · up to 5</span></div>
+        <div class="upload-area" id="upload-area">
+          <input type="file" id="images" name="images" accept="image/*" multiple class="file-input" />
+          <div class="upload-prompt">
+            <span class="upload-icon">📷</span>
+            <p>Click or drag photos here</p>
+            <span class="upload-note">JPG, PNG, GIF · Max 5MB each · Up to 5 photos</span>
+          </div>
+        </div>
+        <div id="image-previews" class="image-previews"></div>
+      </div>
+
+      <!-- 07 Privacy -->
+      <div class="form-section">
+        <div class="form-section-label"><span class="form-section-num">07</span>Privacy <span class="optional-tag">optional</span></div>
+        <div class="toggle-row">
+          <label class="toggle-label" for="passwordToggle">
+            <span>🔒 Password-protect this gift</span>
+            <span class="toggle-hint">Only people with the password can view it</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="passwordToggle" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div id="password-field" class="form-group hidden" style="margin-top:16px;">
+          <label for="password">Gift Password</label>
+          <input type="text" id="password" name="password" placeholder="Choose something memorable…" maxlength="50" autocomplete="off" />
+          <span class="input-hint">Share this with your person so they can open the gift</span>
+        </div>
+      </div>
+
+      <div id="form-error" class="form-error hidden"></div>
+
+      <button type="submit" class="btn-primary btn-large btn-full">
+        <span>✨ Generate My Gift</span>
+      </button>
+      <p class="form-note">Takes 15–25 seconds while AI crafts your personalised gift.</p>
+
+    </form>
+  </main>
+
+  <script src="/js/create.js"></script>
+</body>
+</html>

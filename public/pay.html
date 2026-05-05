@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unlock Your Gift — Digital Love Gift</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Sacramento&display=swap" rel="stylesheet" />
+</head>
+<body class="pay-page">
+
+  <div class="pay-card fade-in">
+
+    <div style="font-size:2.4rem;margin-bottom:12px">💝</div>
+    <h1>Your gift is ready!</h1>
+    <p>Here's a preview of what you've created</p>
+
+    <!-- Gift preview (populated by JS) -->
+    <div class="pay-preview" id="pay-preview">
+      <p class="pay-loading">Loading your gift preview…</p>
+    </div>
+
+    <div class="pay-divider"></div>
+
+    <!-- Pricing -->
+    <div class="pay-price">€5</div>
+    <p class="pay-price-note">one-time · no subscription</p>
+
+    <ul class="pay-includes">
+      <li>✓ &nbsp;Full love letter &amp; poem</li>
+      <li>✓ &nbsp;Five personal reasons I love you</li>
+      <li>✓ &nbsp;Photo gallery with AI captions</li>
+      <li>✓ &nbsp;Shareable link, forever</li>
+      <li>✓ &nbsp;Reaction panel so they can reply</li>
+    </ul>
+
+    <!-- CTA — for now redirects straight to gift (Stripe to be added) -->
+    <a id="unlock-btn" href="#" class="btn-primary btn-large" style="width:100%;justify-content:center;">
+      <span>Unlock &amp; Share Your Gift — €5</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+
+    <p class="pay-secondary">
+      Want to see it first? <a id="preview-link" href="#">Preview the gift</a>
+    </p>
+
+  </div>
+
+  <script>
+    (function () {
+      const params  = new URLSearchParams(window.location.search);
+      const giftId  = params.get('id');
+      if (!giftId) { document.querySelector('.pay-card h1').textContent = 'Gift not found'; return; }
+
+      const unlockBtn   = document.getElementById('unlock-btn');
+      const previewLink = document.getElementById('preview-link');
+      unlockBtn.href   = `/gift.html?id=${giftId}`;
+      previewLink.href = `/gift.html?id=${giftId}&preview=true`;
+
+      // Fetch gift data to populate preview
+      fetch(`/api/gift/${giftId}`)
+        .then(r => r.json())
+        .then(data => {
+          const preview = document.getElementById('pay-preview');
+          if (!data || !data.formData) {
+            preview.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Preview unavailable</p>';
+            return;
+          }
+
+          const { formData, content } = data;
+          const firstLine = (content?.letter || '')
+            .split(/\n+/)
+            .find(l => l.trim().length > 20) || '';
+          const excerpt = firstLine.length > 120
+            ? firstLine.slice(0, 120) + '…'
+            : firstLine;
+
+          preview.innerHTML = `
+            <div class="pay-preview-occasion">${esc(formData.occasion || '')}</div>
+            <div class="pay-preview-title">${esc(content?.title || 'A Love Gift')}</div>
+            <div class="pay-preview-recipient">For ${esc(formData.partnerName)}, with all my love</div>
+            ${excerpt ? `<div class="pay-preview-excerpt">${esc(excerpt)}</div>` : ''}
+          `;
+        })
+        .catch(() => {
+          document.getElementById('pay-preview').innerHTML =
+            '<p style="color:var(--text-muted);font-size:.85rem">Preview unavailable</p>';
+        });
+
+      function esc(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+      }
+    })();
+  </script>
+</body>
+</html>

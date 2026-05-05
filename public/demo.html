@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Demo Gift — Sofia's Anniversary 💝</title>
+  <link rel="stylesheet" href="/css/style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Sacramento&display=swap" rel="stylesheet"/>
+</head>
+<body class="gift-page theme-anniversary">
+
+<!-- Demo banner -->
+<div class="demo-banner">
+  <div class="demo-banner-content">
+    <span>✨ This is a demo gift</span>
+    <a href="/create.html">Create yours for €5 →</a>
+  </div>
+</div>
+
+<!-- Occasion background canvas -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- Confetti canvas -->
+<canvas id="confetti-canvas" class="confetti-canvas"></canvas>
+
+<!-- ══ ENVELOPE SCREEN ════════════════════════════════════════ -->
+<div id="envelope-screen" class="envelope-screen">
+  <div class="env-wrap">
+    <div class="env" id="envelope">
+      <div class="env-back"></div>
+      <div class="env-left"></div>
+      <div class="env-right"></div>
+      <div class="env-bottom"></div>
+      <div class="env-flap" id="env-flap"></div>
+      <div class="env-letter" id="env-letter"><span>💝</span></div>
+    </div>
+    <p class="env-hint">Tap to open your gift</p>
+  </div>
+</div>
+
+<!-- ══ MAIN GIFT ══════════════════════════════════════════════ -->
+<main id="gift-content" class="gift-content demo-offset hidden">
+
+  <!-- HERO -->
+  <section class="gift-hero">
+    <div class="gift-occasion">Anniversary</div>
+    <h1 class="gift-title">My Heart's Home, Sofia</h1>
+    <p class="gift-subtitle">Three years of love, laughter, and everything in between</p>
+    <p class="gift-recipient">For <span style="color:var(--occ-primary);font-weight:500">Sofia</span>, with all my love</p>
+    <div class="days-counter">
+      <div class="days-number" id="days-number">1096</div>
+      <div class="days-label">days together &amp; counting</div>
+    </div>
+    <div class="gift-date" style="margin-top:16px;color:var(--text-muted);font-size:.82rem">Created with love · May 2026</div>
+  </section>
+
+  <!-- LETTER -->
+  <section class="gift-section fade-scroll">
+    <div class="section-ornament">💌</div>
+    <h2 class="section-heading">A Letter For You</h2>
+    <div class="gift-letter">
+      <p>My darling Sofia,</p>
+      <p>Three years ago, you walked into my life and quietly rearranged everything — in the best possible way. I remember the exact moment I knew: we were sitting in that little café on a rainy Tuesday, both of us dripping wet from being caught in the downpour, laughing so hard at nothing in particular. In that moment, something in me settled. Like I'd found the place I was supposed to be.</p>
+      <p>Since then, you have become my home. Not a place, but a feeling — the warmth I come back to at the end of every day, the calm that finds me in the middle of the noise. You have this rare gift of making ordinary moments feel like something worth keeping forever: a Sunday morning with coffee and nowhere to be, the way you hum to yourself when you think nobody is listening, the way you reach for my hand without thinking.</p>
+      <p>I love you for the way you see the world — with more kindness and more wonder than anyone I have ever known. I love you for calling me out when I need it, and for believing in me even when I don't believe in myself. I love you for every road trip, every late-night conversation that stretched into sunrise, every quiet evening that asked for nothing except our being together.</p>
+      <p>Three years of choosing each other, every single day. I'd choose you again and again in every version of every life. Happy anniversary, my love.</p>
+      <p>Forever yours,<br/>Always</p>
+    </div>
+  </section>
+
+  <!-- POEM -->
+  <section class="gift-section fade-scroll">
+    <div class="section-ornament">✍️</div>
+    <h2 class="section-heading">Written Just For You</h2>
+    <div class="gift-poem">In every ordinary Tuesday,
+in coffee left on your side of the bed,
+in the way you laugh before the punchline lands —
+I find you, again and again.
+
+Three years is not a number.
+It is the weight of all the mornings
+I have woken up beside you
+and thought: yes, still you, always you.
+
+Time does not measure what we are.
+It only proves what I already knew —
+that I could spend a thousand more years
+and still be choosing you.</div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section class="gift-section fade-scroll">
+    <div class="section-ornament">💫</div>
+    <h2 class="section-heading">Our Story</h2>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-date">May 2023</div>
+        <div class="timeline-event">Our First Date</div>
+        <div class="timeline-note">A rainy Tuesday café — we talked for four hours and I missed my last train home. Best mistake I ever made.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">September 2023</div>
+        <div class="timeline-event">The Road Trip</div>
+        <div class="timeline-note">The GPS died somewhere in the mountains. We found a tiny village, a tiny inn, and the best night of our lives.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">February 2025</div>
+        <div class="timeline-event">Moving In Together</div>
+        <div class="timeline-note">Three boxes, two bookshelves we couldn't agree on, and the happiest chaos I've ever lived in.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHY I LOVE YOU -->
+  <section class="gift-section fade-scroll">
+    <div class="section-ornament">💕</div>
+    <h2 class="section-heading">Why I Love You</h2>
+    <div class="reasons-list">
+      <div class="reason-item fade-scroll">
+        <div class="reason-num">1</div>
+        <div>The way you laugh before you've even finished your own joke — it fills the room and it fills me, every single time.</div>
+      </div>
+      <div class="reason-item fade-scroll">
+        <div class="reason-num">2</div>
+        <div>Your quiet, instinctive kindness — you notice when someone needs help before they've even asked, and you just do something about it.</div>
+      </div>
+      <div class="reason-item fade-scroll">
+        <div class="reason-num">3</div>
+        <div>The way you hold space for other people's feelings without making it about yourself. It is one of the most beautiful things I have ever seen.</div>
+      </div>
+      <div class="reason-item fade-scroll">
+        <div class="reason-num">4</div>
+        <div>How you make even the most ordinary evening feel like an event worth remembering — you have a gift for being fully present.</div>
+      </div>
+      <div class="reason-item fade-scroll">
+        <div class="reason-num">5</div>
+        <div>The way you still reach for my hand without thinking. Three years in, and that small thing still makes my heart do something embarrassing.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SONG -->
+  <section class="gift-section fade-scroll">
+    <div class="section-ornament">🎵</div>
+    <h2 class="section-heading">Our Song</h2>
+    <div class="song-card">
+      <div class="song-vinyl">
+        <div class="vinyl-label">🎵</div>
+      </div>
+      <div class="song-info">
+        <div class="song-name">Perfect — Ed Sheeran</div>
+        <div class="song-note">This song was playing at the restaurant on our first real date — the one where I finally admitted to myself that I was completely, helplessly in love with you. I can't hear it without seeing your face across that candlelit table.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL MESSAGE -->
+  <section class="gift-final fade-scroll">
+    <div class="final-hearts">💝</div>
+    <blockquote class="final-message">You are my favourite adventure, my softest landing, and my most beautiful story. Every day I choose you — again and again and again.</blockquote>
+  </section>
+
+  <!-- SHARE -->
+  <div class="share-bar fade-scroll">
+    <p>Want to create one just like this?</p>
+    <div class="share-actions">
+      <a href="/create.html" class="btn-primary">💝 Create Your Own Gift — €5</a>
+    </div>
+  </div>
+
+  <footer class="footer">Made with love · Digital Love Gift</footer>
+</main>
+
+<script>
+(function () {
+  // Occasion background
+  const canvas = document.getElementById('bg-canvas');
+  const ctx    = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+
+  const particles = Array.from({ length: 28 }, mkP);
+  function mkP() {
+    const emojis = ['🌹','💕','✨','💍','🥂'];
+    return {
+      x: Math.random() * canvas.width, y: Math.random() * canvas.height * 2 - canvas.height,
+      size: Math.random() * 20 + 8, speed: Math.random() * 0.8 + 0.3,
+      drift: Math.random() * 0.8 - 0.4, spin: Math.random() * 0.03 - 0.015,
+      angle: Math.random() * Math.PI * 2, opacity: Math.random() * 0.4 + 0.15,
+      emoji: emojis[Math.floor(Math.random() * emojis.length)]
+    };
+  }
+  (function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      ctx.save(); ctx.globalAlpha = p.opacity; ctx.font = `${p.size}px serif`;
+      ctx.translate(p.x, p.y); ctx.rotate(p.angle);
+      ctx.fillText(p.emoji, -p.size/2, p.size/2); ctx.restore();
+      p.y += p.speed; p.x += p.drift; p.angle += p.spin;
+      if (p.y > canvas.height + 40) Object.assign(p, mkP(), { y: -40 });
+    });
+    requestAnimationFrame(draw);
+  })();
+
+  // Days counter animation
+  (function () {
+    const el     = document.getElementById('days-number');
+    const target = 1096;
+    const start  = Date.now();
+    const dur    = 2000;
+    const obs    = new IntersectionObserver(entries => {
+      if (!entries[0].isIntersecting) return;
+      obs.disconnect();
+      (function tick() {
+        const p = Math.min((Date.now() - start) / dur, 1);
+        el.textContent = Math.round((1 - Math.pow(1 - p, 3)) * target).toLocaleString();
+        if (p < 1) requestAnimationFrame(tick);
+      })();
+    }, { threshold: 0.5 });
+    obs.observe(el);
+  })();
+
+  // Envelope open
+  const envScr = document.getElementById('envelope-screen');
+  const env    = document.getElementById('envelope');
+
+  envScr.addEventListener('click', () => {
+    env.classList.add('opening');
+    setTimeout(() => {
+      envScr.classList.add('hidden');
+      const content = document.getElementById('gift-content');
+      content.classList.remove('hidden');
+      launchConfetti();
+      // Scroll fades
+      const obs = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+      }, { threshold: 0.1 });
+      document.querySelectorAll('.fade-scroll').forEach(el => obs.observe(el));
+    }, 900);
+  });
+
+  // Confetti
+  function launchConfetti() {
+    const c   = document.getElementById('confetti-canvas');
+    c.style.display = 'block';
+    c.width   = window.innerWidth;
+    c.height  = window.innerHeight;
+    const ctx = c.getContext('2d');
+    const hearts = ['💝','💖','💗','🌸','✨','💕'];
+    const pieces = Array.from({ length: 70 }, () => ({
+      x: Math.random() * c.width, y: Math.random() * c.height - c.height,
+      vx: (Math.random() - 0.5) * 5, vy: Math.random() * 4 + 2,
+      size: Math.random() * 22 + 10, spin: Math.random() * 0.15 - 0.075,
+      angle: Math.random() * Math.PI * 2,
+      emoji: hearts[Math.floor(Math.random() * hearts.length)],
+      alpha: 1, decay: Math.random() * 0.008 + 0.004
+    }));
+    let frame = 0;
+    (function draw() {
+      ctx.clearRect(0, 0, c.width, c.height);
+      let alive = 0;
+      pieces.forEach(p => {
+        if (p.alpha <= 0) return; alive++;
+        ctx.save(); ctx.globalAlpha = p.alpha; ctx.font = `${p.size}px serif`;
+        ctx.translate(p.x, p.y); ctx.rotate(p.angle);
+        ctx.fillText(p.emoji, -p.size/2, p.size/2); ctx.restore();
+        p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.angle += p.spin; p.alpha -= p.decay;
+      });
+      if (alive > 0 && frame++ < 300) requestAnimationFrame(draw);
+      else c.style.display = 'none';
+    })();
+  }
+})();
+</script>
+</body>
+</html>
