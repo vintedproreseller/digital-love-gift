@@ -3,7 +3,8 @@ import { getGift } from '@/lib/db';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request, { params }) {
-  const gift = await getGift(params.id);
+  const { id } = await params;
+  const gift = await getGift(id);
   if (!gift) return Response.json({ error: 'Gift not found' }, { status: 404 });
 
   if (gift.isPasswordProtected) {
