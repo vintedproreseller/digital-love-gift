@@ -7,10 +7,15 @@ export async function GET(request, { params }) {
   if (!gift) return Response.json({ error: 'Gift not found' }, { status: 404 });
 
   if (gift.isPasswordProtected) {
+    // Return minimal info — enough for the lock screen and payment gate
     return Response.json({
-      id: gift.id,
+      id:                 gift.id,
       isPasswordProtected: true,
-      formData: { partnerName: gift.formData.partnerName, occasion: gift.formData.occasion },
+      isPaid:             gift.isPaid,
+      formData: {
+        partnerName: gift.formData.partnerName,
+        occasion:    gift.formData.occasion,
+      },
     });
   }
 

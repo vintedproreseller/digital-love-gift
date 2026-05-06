@@ -1,118 +1,138 @@
 /**
- * db.js — SQLite via sql.js (pure JavaScript, no C++ build tools needed)
- * Works on Windows, Mac, Linux without any native compilation.
- * Data persisted to data/gifts.db
+ * db.js — PostgreSQL via pg (Neon-compatible)
+ * Uses a module-level Pool with a global cache to survive Next.js hot reloads.
+ * All functions are async; same external API as the old sql.js version.
  */
 
-const path = require('path');
-const fs   = require('fs');
+const { Pool } = require('pg');
 
-const DB_PATH = path.resolve(process.cwd(), 'data', 'gifts.db');
+// Reuse pool across Next.js hot reloads in dev
+const pool = global._pgPool ?? new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 5,
+  idleTimeoutMillis: 30000,
+});
+global._pgPool = pool;
 
-let _db = null;
+// Run DDL once per process (cached in global so hot reloads don't re-run it)
+const dbReady = (global._dbInit = global._dbInit ?? initDb());
 
-async function getDb() {
-  if (_db) return _db;
-
-  const initSqlJs = require('sql.js');
-  const SQL = await initSqlJs();
-
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-
-  if (fs.existsSync(DB_PATH)) {
-    _db = new SQL.Database(fs.readFileSync(DB_PATH));
-  } else {
-    _db = new SQL.Database();
-  }
-
-  _db.run(`
+async function initDb() {
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS gifts (
-      id                TEXT PRIMARY KEY,
-      created_at        TEXT NOT NULL DEFAULT (datetime('now')),
-      partner_name      TEXT NOT NULL,
-      occasion          TEXT NOT NULL,
-      tone              TEXT NOT NULL,
+      id                TEXT        PRIMARY KEY,
+      created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      partner_name      TEXT        NOT NULL,
+      occasion          TEXT        NOT NULL,
+      tone              TEXT        NOT NULL,
       song              TEXT,
       song_url          TEXT,
       relationship_date TEXT,
-      memories          TEXT NOT NULL,
-      traits            TEXT NOT NULL,
+      memories          TEXT        NOT NULL,
+      traits            TEXT        NOT NULL,
       timeline          TEXT,
       images            TEXT,
-      ai_content        TEXT NOT NULL,
+      ai_content        TEXT        NOT NULL,
       password_hash     TEXT,
-      is_protected      INTEGER NOT NULL DEFAULT 0,
-      view_count        INTEGER NOT NULL DEFAULT 0
+      is_protected      BOOLEAN     NOT NULL DEFAULT FALSE,
+      view_count        INTEGER     NOT NULL DEFAULT 0,
+      is_paid           BOOLEAN     NOT NULL DEFAULT FALSE
     );
+
     CREATE TABLE IF NOT EXISTS reactions (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      gift_id    TEXT NOT NULL,
-      emoji      TEXT NOT NULL,
+      id         SERIAL      PRIMARY KEY,
+      gift_id    TEXT        NOT NULL,
+      emoji      TEXT        NOT NULL,
       message    TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
     CREATE INDEX IF NOT EXISTS idx_reactions_gift ON reactions(gift_id);
   `);
 
-  persist();
-  return _db;
+  // Migration: add payment intent column to existing databases
+  await pool.query(`
+    ALTER TABLE gifts
+    ADD COLUMN IF NOT EXISTS stripe_payment_intent_id TEXT
+  `).catch(() => {});
 }
 
-function persist() {
-  if (!_db) return;
-  try {
-    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    fs.writeFileSync(DB_PATH, Buffer.from(_db.export()));
-  } catch (e) {
-    console.error('DB persist error:', e);
-  }
-}
-
+// ── saveGift ──────────────────────────────────────────────────
 async function saveGift(gift) {
-  const db = await getDb();
-  db.run(
+  await dbReady;
+  await pool.query(
     `INSERT INTO gifts
-      (id, partner_name, occasion, tone, song, song_url, relationship_date,
-       memories, traits, timeline, images, ai_content, password_hash, is_protected)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       (id, partner_name, occasion, tone, song, song_url, relationship_date,
+        memories, traits, timeline, images, ai_content, password_hash, is_protected)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
     [
       gift.id,
       gift.formData.partnerName,
       gift.formData.occasion,
       gift.formData.tone,
-      gift.formData.song || null,
-      gift.formData.songUrl || null,
+      gift.formData.song         || null,
+      gift.formData.songUrl      || null,
       gift.formData.relationshipDate || null,
       JSON.stringify(gift.formData.memories),
       JSON.stringify(gift.formData.traits),
       JSON.stringify(gift.formData.timeline || []),
-      JSON.stringify(gift.images || []),
+      JSON.stringify(gift.images  || []),
       JSON.stringify(gift.content),
-      gift.passwordHash || null,
-      gift.isPasswordProtected ? 1 : 0,
+      gift.passwordHash           || null,
+      gift.isPasswordProtected    ?? false,
     ]
   );
-  persist();
 }
 
+// ── getGift ───────────────────────────────────────────────────
 async function getGift(id) {
-  const db  = await getDb();
-  const res = db.exec('SELECT * FROM gifts WHERE id = ?', [id]);
-  if (!res.length || !res[0].values.length) return null;
+  await dbReady;
+  const { rows } = await pool.query('SELECT * FROM gifts WHERE id = $1', [id]);
+  if (!rows.length) return null;
 
-  db.run('UPDATE gifts SET view_count = view_count + 1 WHERE id = ?', [id]);
-  persist();
+  // Fire-and-forget view count bump
+  pool.query('UPDATE gifts SET view_count = view_count + 1 WHERE id = $1', [id]).catch(() => {});
 
-  const cols = res[0].columns;
-  const row  = Object.fromEntries(cols.map((c, i) => [c, res[0].values[0][i]]));
-  return rowToGift(row);
+  return rowToGift(rows[0]);
 }
 
+// ── markGiftPaid ──────────────────────────────────────────────
+async function markGiftPaid(id, paymentIntentId) {
+  await dbReady;
+  await pool.query(
+    'UPDATE gifts SET is_paid = TRUE, stripe_payment_intent_id = $1 WHERE id = $2',
+    [paymentIntentId || null, id]
+  );
+}
+
+// ── addReaction ───────────────────────────────────────────────
+async function addReaction(giftId, emoji, message) {
+  await dbReady;
+  await pool.query(
+    'INSERT INTO reactions (gift_id, emoji, message) VALUES ($1,$2,$3)',
+    [giftId, emoji, message || null]
+  );
+  return getReactions(giftId);
+}
+
+// ── getReactions ──────────────────────────────────────────────
+async function getReactions(giftId) {
+  await dbReady;
+  const { rows } = await pool.query(
+    'SELECT emoji, message, created_at FROM reactions WHERE gift_id = $1 ORDER BY created_at DESC',
+    [giftId]
+  );
+  return rows;
+}
+
+// ── rowToGift ─────────────────────────────────────────────────
 function rowToGift(row) {
   return {
     id:        row.id,
     createdAt: row.created_at,
     viewCount: row.view_count,
+    isPaid:    row.is_paid,
     formData: {
       partnerName:      row.partner_name,
       occasion:         row.occasion,
@@ -124,29 +144,11 @@ function rowToGift(row) {
       traits:           JSON.parse(row.traits),
       timeline:         JSON.parse(row.timeline || '[]'),
     },
-    images:              JSON.parse(row.images || '[]'),
+    images:              JSON.parse(row.images    || '[]'),
     content:             JSON.parse(row.ai_content),
     passwordHash:        row.password_hash,
-    isPasswordProtected: row.is_protected === 1,
+    isPasswordProtected: row.is_protected,
   };
 }
 
-async function addReaction(giftId, emoji, message) {
-  const db = await getDb();
-  db.run('INSERT INTO reactions (gift_id, emoji, message) VALUES (?,?,?)', [giftId, emoji, message || null]);
-  persist();
-  return getReactions(giftId);
-}
-
-async function getReactions(giftId) {
-  const db  = await getDb();
-  const res = db.exec(
-    'SELECT emoji, message, created_at FROM reactions WHERE gift_id = ? ORDER BY created_at DESC',
-    [giftId]
-  );
-  if (!res.length) return [];
-  const cols = res[0].columns;
-  return res[0].values.map(row => Object.fromEntries(cols.map((c, i) => [c, row[i]])));
-}
-
-module.exports = { saveGift, getGift, addReaction, getReactions };
+module.exports = { saveGift, getGift, markGiftPaid, addReaction, getReactions };

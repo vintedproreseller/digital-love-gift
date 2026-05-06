@@ -520,6 +520,20 @@ body.theme-proposal  { --occ-primary:#b45309; --occ-secondary:#78350f; --occ-bg:
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   BACKGROUND STICKERS — floating emoji, GPU-composited via rAF
+   JS creates these; CSS just positions them correctly.
+═══════════════════════════════════════════════════════════════ */
+.bg-sticker {
+  position: fixed;
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform, opacity;
+  user-select: none;
+  animation: none; /* animation driven entirely by JS rAF, not CSS */
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════
    PRINT STYLES — "Download as PDF" / window.print()
 ═══════════════════════════════════════════════════════════════ */
 @media print{

@@ -10,9 +10,10 @@ let giftData      = null;
 let selectedEmoji = null;
 let qrGenerated   = false;
 
-const params    = new URLSearchParams(window.location.search);
-const giftId    = params.get('id') || window.location.pathname.split('/gift/')[1];
-const isPreview = params.get('preview') === 'true';
+const params      = new URLSearchParams(window.location.search);
+const giftId      = params.get('id') || window.location.pathname.split('/gift/')[1];
+const isPreview   = params.get('preview') === 'true';
+const isPaidParam = params.get('paid') === 'true';
 
 // ── Occasion → CSS theme class ────────────────────────────────
 const occasionThemeMap = {
@@ -45,6 +46,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!res.ok) throw new Error('Not found');
     const data = await res.json();
 
+    // ── 1. Confirm payment if Stripe just redirected here ─────
+    if (isPaidParam && !data.isPaid) {
+      try {
+        await fetch(`/api/gift/${giftId}/confirm-payment`, { method: 'POST' });
+        data.isPaid = true;
+      } catch { /* non-fatal — webhook will also mark paid */ }
+    }
+
+    // ── 2. Payment gate — gift not yet paid ───────────────────
+    // Skip gate for previews; for password-protected gifts the
+    // password is their protection so we don't double-gate.
+    if (!data.isPaid && !isPreview && !data.isPasswordProtected) {
+      giftData = data;
+      applyOccasionTheme(data.formData?.occasion);
+      hideLoading();
+      // Render whatever content we have (may be sparse for unpaid gifts)
+      if (data.content) {
+        renderGift(giftData);
+        initBackgroundStickers(data.formData?.occasion);
+      }
+      document.body.classList.add('preview-mode');
+      show('gift-content');
+      const lockEl = document.getElementById('preview-lock');
+      if (lockEl) {
+        lockEl.classList.remove('hidden');
+        const payBtn = document.getElementById('preview-pay-btn');
+        if (payBtn) payBtn.href = `/pay.html?id=${giftId}`;
+      }
+      initScrollFades();
+      return;
+    }
+
+    // ── 3. Preview mode (?preview=true) ───────────────────────
     if (isPreview) {
       if (data.isPasswordProtected && !data.content) {
         window.location.href = `/gift.html?id=${giftId}`;
@@ -54,6 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       applyOccasionTheme(data.formData?.occasion);
       hideLoading();
       renderGift(giftData);
+      initBackgroundStickers(data.formData?.occasion);
       document.body.classList.add('preview-mode');
       show('gift-content');
       show('preview-lock');
@@ -63,6 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    // ── 4. Normal flow ────────────────────────────────────────
     if (data.isPasswordProtected) {
       const sub = document.getElementById('lock-sub');
       if (sub) sub.textContent = `Enter the password to open ${data.formData.partnerName}'s gift`;
@@ -171,6 +207,7 @@ function openEnvelope() {
   setTimeout(() => {
     hide('envelope-screen');
     renderGift(giftData);
+    initBackgroundStickers(giftData.formData.occasion);
     show('gift-content');
     launchConfetti();
     initScrollFades();
@@ -369,7 +406,7 @@ function buildTimeline(timeline, captions) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  CONFETTI BURST — one-time on envelope open, self-terminates
+//  CONFETTI BURST — rAF-driven, 30 particles, hard 4 s cap
 // ═══════════════════════════════════════════════════════════════
 function launchConfetti() {
   const canvas = document.getElementById('confetti-canvas');
@@ -379,7 +416,9 @@ function launchConfetti() {
   canvas.height = window.innerHeight;
   const ctx    = canvas.getContext('2d');
   const hearts = ['💝','💖','💗','🌸','✨','💕','🎉'];
-  const pieces = Array.from({ length: 80 }, () => ({
+
+  // 30 particles max — enough for visual impact, light on the GPU
+  const pieces = Array.from({ length: 30 }, () => ({
     x:     Math.random() * canvas.width,
     y:     Math.random() * canvas.height - canvas.height,
     vx:    (Math.random() - 0.5) * 5,
@@ -389,28 +428,117 @@ function launchConfetti() {
     angle: Math.random() * Math.PI * 2,
     emoji: hearts[Math.floor(Math.random() * hearts.length)],
     alpha: 1,
-    decay: Math.random() * 0.008 + 0.004,
+    decay: Math.random() * 0.010 + 0.005, // slightly faster decay for 30 pieces
   }));
-  let frame = 0;
-  (function draw() {
+
+  const DURATION = 4000; // hard cap — 4 seconds
+  const startTs  = performance.now();
+  let   rafId;
+
+  function draw(now) {
+    // Hard 4-second kill — cancelAnimationFrame so nothing lingers
+    if (now - startTs > DURATION) {
+      cancelAnimationFrame(rafId);
+      canvas.style.display = 'none';
+      return;
+    }
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     let alive = 0;
-    pieces.forEach(p => {
-      if (p.alpha <= 0) return;
+
+    for (let i = 0; i < pieces.length; i++) {
+      const p = pieces[i];
+      if (p.alpha <= 0) continue;
       alive++;
       ctx.save();
       ctx.globalAlpha = p.alpha;
-      ctx.font = `${p.size}px serif`;
+      ctx.font        = `${p.size}px serif`;
       ctx.translate(p.x, p.y);
       ctx.rotate(p.angle);
-      ctx.fillText(p.emoji, -p.size/2, p.size/2);
+      ctx.fillText(p.emoji, -p.size / 2, p.size / 2);
       ctx.restore();
-      p.x += p.vx; p.y += p.vy; p.vy += 0.1;
-      p.angle += p.spin; p.alpha -= p.decay;
-    });
-    if (alive > 0 && frame++ < 300) requestAnimationFrame(draw);
-    else canvas.style.display = 'none';
-  })();
+      // Physics — uses canvas transforms, not DOM top/left
+      p.x     += p.vx;
+      p.y     += p.vy;
+      p.vy    += 0.12; // gravity
+      p.angle += p.spin;
+      p.alpha -= p.decay;
+    }
+
+    if (alive > 0) {
+      rafId = requestAnimationFrame(draw);
+    } else {
+      canvas.style.display = 'none';
+    }
+  }
+
+  rafId = requestAnimationFrame(draw);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BACKGROUND STICKERS — occasion-aware, 20 elements, rAF loop
+// ═══════════════════════════════════════════════════════════════
+let _bgStickerRafId = null;
+let _bgStickerReady = false;
+
+function initBackgroundStickers(occasion) {
+  if (_bgStickerReady) return;
+  _bgStickerReady = true;
+
+  const emojiSets = {
+    'Birthday':        ['🎂','🎁','🎈','⭐','✨'],
+    'Anniversary':     ['💍','🌹','💫','✨','💝'],
+    "Valentine's Day": ['💝','💖','🌹','💋','✨'],
+    'Proposal':        ['💍','💝','✨','🌸','💫'],
+  };
+  const emojis     = emojiSets[occasion] || ['💝','💖','💗','🌸','✨'];
+  const COUNT      = 20;
+  const vh         = window.innerHeight;
+  const initTs     = performance.now();
+  // Extra space above + below the viewport so transitions are seamless
+  const travelPx   = vh + 80;
+
+  const stickers = Array.from({ length: COUNT }, () => {
+    const el       = document.createElement('div');
+    el.className   = 'bg-sticker';
+    const size     = Math.random() * 16 + 16;                   // 16–32 px
+    const x        = Math.random() * 100;                        // 0–100 vw
+    const duration = (Math.random() * 20 + 15) * 1000;          // 15–35 s
+    const opacity  = +(Math.random() * 0.4 + 0.4).toFixed(2);   // 0.4–0.8
+    const phase    = Math.random() * duration;                   // random start offset
+
+    el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    // Fixed position, below viewport initially; movement via transform only
+    el.style.cssText =
+      `left:${x}vw;bottom:${-size}px;font-size:${size}px;` +
+      `will-change:transform,opacity;`;
+    document.body.appendChild(el);
+
+    return { el, duration, phase, opacity };
+  });
+
+  function tick(ts) {
+    const elapsed = ts - initTs;
+
+    for (let i = 0; i < stickers.length; i++) {
+      const s        = stickers[i];
+      const progress = ((elapsed + s.phase) % s.duration) / s.duration; // 0→1
+      const y        = -(progress * travelPx);  // 0 → -(vh+80), floats upward
+
+      // Fade out smoothly in the top 30% of travel
+      const alpha = progress > 0.7
+        ? s.opacity * (1 - (progress - 0.7) / 0.3)
+        : s.opacity;
+
+      // GPU-composited — only transform and opacity, never top/left
+      s.el.style.transform = `translateY(${y}px)`;
+      s.el.style.opacity   = alpha;
+    }
+
+    _bgStickerRafId = requestAnimationFrame(tick);
+  }
+
+  _bgStickerRafId = requestAnimationFrame(tick);
 }
 
 // ═══════════════════════════════════════════════════════════════

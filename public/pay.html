@@ -1,100 +1,524 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Unlock Your Gift — Digital Love Gift</title>
-  <link rel="stylesheet" href="/css/style.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Sacramento&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Unlock Your Gift 💝</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Sacramento&display=swap" rel="stylesheet"/>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --rose:       #c96a7a;
+      --rose-dark:  #a84f5e;
+      --rose-light: #f5c6d0;
+      --blush:      #fdf0f2;
+      --cream:      #fef9f5;
+      --text:       #2d1f22;
+      --text-soft:  #7a5c62;
+      --border:     #f0d8dc;
+      --white:      #ffffff;
+    }
+
+    html, body {
+      min-height: 100vh;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--text);
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(249,196,208,0.35) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 80% at 85% 90%, rgba(252,220,228,0.3) 0%, transparent 55%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Loading ── */
+    #page-loading {
+      position: fixed; inset: 0;
+      background: var(--cream);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 50; transition: opacity 0.4s ease;
+    }
+    #page-loading.hidden { opacity: 0; pointer-events: none; }
+    .loading-hearts span {
+      display: inline-block; font-size: 1.6rem;
+      animation: bounce 1.2s ease-in-out infinite;
+    }
+    .loading-hearts span:nth-child(2) { animation-delay: 0.15s; }
+    .loading-hearts span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes bounce {
+      0%,80%,100% { transform: translateY(0); }
+      40%         { transform: translateY(-12px); }
+    }
+
+    /* ── Error ── */
+    #page-error {
+      display: none; position: fixed; inset: 0;
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px;
+      text-align: center; padding: 40px; z-index: 40;
+    }
+    #page-error h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; }
+
+    /* ── Success ── */
+    #success-overlay {
+      position: fixed; inset: 0; background: var(--blush);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      z-index: 100; opacity: 0; pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    #success-overlay.visible { opacity: 1; pointer-events: all; }
+    .success-hearts { font-size: 3.5rem; animation: heartBurst 0.6s ease both; }
+    @keyframes heartBurst {
+      0%  { transform: scale(0); opacity: 0; }
+      60% { transform: scale(1.3); }
+      100%{ transform: scale(1); opacity: 1; }
+    }
+    .success-title {
+      font-family: 'Sacramento', cursive; font-size: 3rem; color: var(--rose);
+      animation: fadeUp 0.5s 0.2s ease both; opacity: 0;
+    }
+    .success-sub {
+      font-family: 'Cormorant Garamond', serif; font-style: italic;
+      font-size: 1.15rem; color: var(--text-soft);
+      animation: fadeUp 0.5s 0.35s ease both; opacity: 0;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Main layout ── */
+    #main-page {
+      position: relative; z-index: 1; min-height: 100vh; width: 100%;
+    }
+    .page-inner {
+      display: grid;
+      grid-template-columns: 1fr 1px 1fr;
+      max-width: 1080px;
+      margin: 0 auto;
+      min-height: 100vh;
+      align-items: center;
+    }
+    .page-divider {
+      background: linear-gradient(to bottom, transparent 5%, var(--border) 25%, var(--border) 75%, transparent 95%);
+      align-self: stretch;
+    }
+
+    /* ── Left ── */
+    .preview-side {
+      padding: 60px 48px 60px 40px;
+      display: flex; flex-direction: column;
+    }
+    .back-link {
+      display: inline-flex; align-items: center; gap: 5px;
+      color: var(--text-soft); text-decoration: none;
+      font-size: 0.83rem; opacity: 0.6; transition: opacity 0.2s;
+      margin-bottom: 24px;
+    }
+    .back-link:hover { opacity: 1; }
+    .gift-preview-card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 20px; padding: 36px 32px;
+      box-shadow: 0 8px 40px rgba(201,106,122,0.08), 0 2px 8px rgba(0,0,0,0.04);
+      animation: fadeUp 0.5s ease both;
+    }
+    .preview-heart {
+      font-size: 2.6rem; display: block; margin-bottom: 14px;
+      animation: pulse 2.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { transform: scale(1); }
+      50%     { transform: scale(1.1); }
+    }
+    .preview-occasion {
+      display: inline-block; background: var(--rose-light); color: var(--rose-dark);
+      font-size: 0.68rem; font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; padding: 4px 12px; border-radius: 20px; margin-bottom: 14px;
+    }
+    .preview-title {
+      font-family: 'Sacramento', cursive; font-size: 1.95rem;
+      line-height: 1.25; color: var(--text); margin-bottom: 6px;
+    }
+    .preview-for {
+      font-family: 'Cormorant Garamond', serif; font-style: italic;
+      font-size: 1rem; color: var(--rose); margin-bottom: 22px;
+    }
+    .preview-blur-wrap {
+      position: relative; margin-bottom: 22px; overflow: hidden; max-height: 78px;
+    }
+    .preview-letter-tease {
+      font-family: 'Cormorant Garamond', serif; font-size: 0.97rem;
+      line-height: 1.7; color: var(--text-soft); filter: blur(4px); user-select: none;
+    }
+    .preview-blur-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to bottom, transparent 0%, var(--white) 65%);
+      display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;
+    }
+    .preview-lock-label { font-size: 0.78rem; color: var(--text-soft); }
+    .checklist { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+    .checklist li {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.86rem; color: var(--text-soft);
+    }
+    .checklist li::before {
+      content: '✓'; width: 20px; height: 20px; min-width: 20px;
+      background: rgba(201,106,122,0.12); color: var(--rose);
+      border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; font-size: 0.72rem; font-weight: 700;
+    }
+
+    /* ── Right ── */
+    .payment-side {
+      padding: 60px 40px 60px 48px;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    .payment-box {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 20px; padding: 40px 36px;
+      box-shadow: 0 8px 40px rgba(201,106,122,0.08), 0 2px 8px rgba(0,0,0,0.04);
+      animation: fadeUp 0.5s 0.12s ease both;
+    }
+    .payment-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem; font-weight: 400; margin-bottom: 4px;
+    }
+    .payment-sub {
+      font-size: 0.84rem; color: var(--text-soft); margin-bottom: 26px;
+    }
+    .payment-sub strong { color: var(--rose); font-weight: 500; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .f-group { margin-bottom: 14px; }
+    .f-group label {
+      display: block; font-size: 0.72rem; font-weight: 500;
+      color: var(--text-soft); letter-spacing: 0.06em;
+      text-transform: uppercase; margin-bottom: 7px;
+    }
+    .f-group input {
+      width: 100%; padding: 11px 13px;
+      border: 1.5px solid var(--border); border-radius: 10px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+      color: var(--text); background: var(--white);
+      outline: none; transition: border-color 0.2s;
+    }
+    .f-group input:focus { border-color: var(--rose-light); }
+    .f-group input::placeholder { color: #c4adb0; }
+
+    /* Stripe element wrappers */
+    .stripe-el {
+      padding: 11px 13px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      background: var(--white);
+      transition: border-color 0.2s;
+      min-height: 42px;
+    }
+    .stripe-el.StripeElement--focus   { border-color: var(--rose-light); }
+    .stripe-el.StripeElement--invalid { border-color: #e57373; }
+
+    .card-row {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 12px; margin-bottom: 14px;
+    }
+    .card-row .f-group { margin-bottom: 0; }
+
+    #card-errors {
+      color: #c0392b; font-size: 0.81rem;
+      min-height: 18px; margin-bottom: 16px;
+    }
+
+    .pay-btn {
+      width: 100%; padding: 14px 24px;
+      background: linear-gradient(135deg, var(--rose) 0%, #e07a8a 100%);
+      color: white; border: none; border-radius: 12px;
+      font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 500;
+      cursor: pointer; display: flex; align-items: center;
+      justify-content: center; gap: 10px;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(201,106,122,0.35); margin-bottom: 14px;
+    }
+    .pay-btn:hover:not(:disabled) {
+      opacity: 0.92; transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(201,106,122,0.42);
+    }
+    .pay-btn:active:not(:disabled) { transform: translateY(0); }
+    .pay-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .spinner {
+      width: 17px; height: 17px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: white; border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      display: none; flex-shrink: 0;
+    }
+    .pay-btn.loading .spinner  { display: block; }
+    .pay-btn.loading .btn-text { opacity: 0.75; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .stripe-badge {
+      text-align: center; font-size: 0.77rem; color: #b8a8ab;
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 740px) {
+      .page-inner { grid-template-columns: 1fr; }
+      .page-divider { display: none; }
+      .preview-side { padding: 40px 22px 16px; }
+      .payment-side { padding: 16px 22px 48px; }
+      .payment-box  { padding: 28px 20px; }
+      .preview-title { font-size: 1.6rem; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
-<body class="pay-page">
+<body>
 
-  <div class="pay-card fade-in">
+<div id="page-loading">
+  <div class="loading-hearts"><span>💝</span><span>💖</span><span>💗</span></div>
+</div>
 
-    <div style="font-size:2.4rem;margin-bottom:12px">💝</div>
-    <h1>Your gift is ready!</h1>
-    <p>Here's a preview of what you've created</p>
+<div id="page-error">
+  <h2>💔 Gift not found</h2>
+  <p style="color:var(--text-soft);margin-bottom:20px">This link may be invalid.</p>
+  <a href="/index.html" style="color:var(--rose)">← Create a new gift</a>
+</div>
 
-    <!-- Gift preview (populated by JS) -->
-    <div class="pay-preview" id="pay-preview">
-      <p class="pay-loading">Loading your gift preview…</p>
+<div id="success-overlay">
+  <div class="success-hearts">💝</div>
+  <div class="success-title">Payment successful!</div>
+  <div class="success-sub">Opening your gift…</div>
+</div>
+
+<div id="main-page" style="display:none">
+  <div class="page-inner">
+
+    <!-- LEFT: Preview -->
+    <div class="preview-side">
+      <a href="javascript:history.back()" class="back-link">← Back</a>
+      <div class="gift-preview-card">
+        <span class="preview-heart">💝</span>
+        <div class="preview-occasion" id="preview-occasion">Gift</div>
+        <h2 class="preview-title" id="preview-title">A beautiful gift awaits</h2>
+        <p class="preview-for" id="preview-for">For someone special</p>
+        <div class="preview-blur-wrap">
+          <p class="preview-letter-tease" id="preview-letter">
+            My dearest love, as I write these words my heart overflows with everything you mean to me. From the very first moment we met I knew that something extraordinary was beginning between us…
+          </p>
+          <div class="preview-blur-overlay">
+            <span class="preview-lock-label">🔒 Unlock to reveal the full gift</span>
+          </div>
+        </div>
+        <ul class="checklist">
+          <li>Heartfelt personal love letter</li>
+          <li>Poem written just for them</li>
+          <li>7 reasons you love them</li>
+          <li>Photo gallery with captions</li>
+          <li>Shareable link, forever</li>
+        </ul>
+      </div>
     </div>
 
-    <div class="pay-divider"></div>
+    <!-- DIVIDER -->
+    <div class="page-divider"></div>
 
-    <!-- Pricing -->
-    <div class="pay-price">€5</div>
-    <p class="pay-price-note">one-time · no subscription</p>
+    <!-- RIGHT: Payment -->
+    <div class="payment-side">
+      <div class="payment-box">
+        <h1 class="payment-heading">Unlock Your Gift</h1>
+        <p class="payment-sub">One time · <strong>€5.00</strong> · Instant access</p>
 
-    <ul class="pay-includes">
-      <li>✓ &nbsp;Full love letter &amp; poem</li>
-      <li>✓ &nbsp;Five personal reasons I love you</li>
-      <li>✓ &nbsp;Photo gallery with AI captions</li>
-      <li>✓ &nbsp;Shareable link, forever</li>
-      <li>✓ &nbsp;Reaction panel so they can reply</li>
-    </ul>
+        <div class="form-row">
+          <div class="f-group">
+            <label for="cardholder-email">Email</label>
+            <input type="email" id="cardholder-email" placeholder="you@example.com" autocomplete="email"/>
+          </div>
+          <div class="f-group">
+            <label for="cardholder-name">Name on card</label>
+            <input type="text" id="cardholder-name" placeholder="Full name" autocomplete="cc-name"/>
+          </div>
+        </div>
 
-    <!-- CTA — for now redirects straight to gift (Stripe to be added) -->
-    <a id="unlock-btn" href="#" class="btn-primary btn-large" style="width:100%;justify-content:center;">
-      <span>Unlock &amp; Share Your Gift — €5</span>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-    </a>
+        <div class="f-group">
+          <label>Card number</label>
+          <div class="stripe-el" id="card-number-element"></div>
+        </div>
 
-    <p class="pay-secondary">
-      Want to see it first? <a id="preview-link" href="#">Preview the gift</a>
-    </p>
+        <div class="card-row">
+          <div class="f-group">
+            <label>Expiry date</label>
+            <div class="stripe-el" id="card-expiry-element"></div>
+          </div>
+          <div class="f-group">
+            <label>CVC</label>
+            <div class="stripe-el" id="card-cvc-element"></div>
+          </div>
+        </div>
+
+        <div id="card-errors"></div>
+
+        <button class="pay-btn" id="pay-btn" onclick="handlePayment()">
+          <div class="spinner"></div>
+          <span class="btn-text">Pay €5 &amp; Unlock Gift 💝</span>
+        </button>
+
+        <div class="stripe-badge">🔒 Secure payment powered by Stripe</div>
+      </div>
+    </div>
 
   </div>
+</div>
 
-  <script>
-    (function () {
-      const params  = new URLSearchParams(window.location.search);
-      const giftId  = params.get('id');
-      if (!giftId) { document.querySelector('.pay-card h1').textContent = 'Gift not found'; return; }
+<script>
+'use strict';
 
-      const unlockBtn   = document.getElementById('unlock-btn');
-      const previewLink = document.getElementById('preview-link');
-      unlockBtn.href   = `/gift.html?id=${giftId}`;
-      previewLink.href = `/gift.html?id=${giftId}&preview=true`;
+const params = new URLSearchParams(window.location.search);
+const giftId = params.get('id');
 
-      // Fetch gift data to populate preview
-      fetch(`/api/gift/${giftId}`)
-        .then(r => r.json())
-        .then(data => {
-          const preview = document.getElementById('pay-preview');
-          if (!data || !data.formData) {
-            preview.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Preview unavailable</p>';
-            return;
-          }
+let stripe, cardNumberEl, cardExpiryEl, cardCvcEl, clientSecret;
 
-          const { formData, content } = data;
-          const firstLine = (content?.letter || '')
-            .split(/\n+/)
-            .find(l => l.trim().length > 20) || '';
-          const excerpt = firstLine.length > 120
-            ? firstLine.slice(0, 120) + '…'
-            : firstLine;
+const stripeStyle = {
+  base: {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '14px',
+    color: '#2d1f22',
+    '::placeholder': { color: '#c4adb0' },
+  },
+  invalid: { color: '#c0392b' },
+};
 
-          preview.innerHTML = `
-            <div class="pay-preview-occasion">${esc(formData.occasion || '')}</div>
-            <div class="pay-preview-title">${esc(content?.title || 'A Love Gift')}</div>
-            <div class="pay-preview-recipient">For ${esc(formData.partnerName)}, with all my love</div>
-            ${excerpt ? `<div class="pay-preview-excerpt">${esc(excerpt)}</div>` : ''}
-          `;
-        })
-        .catch(() => {
-          document.getElementById('pay-preview').innerHTML =
-            '<p style="color:var(--text-muted);font-size:.85rem">Preview unavailable</p>';
-        });
+async function init() {
+  if (!giftId) return showError();
 
-      function esc(str) {
-        const d = document.createElement('div');
-        d.textContent = str;
-        return d.innerHTML;
-      }
-    })();
-  </script>
+  // 1. Fetch gift preview
+  try {
+    const res  = await fetch(`/api/gift/${giftId}`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+
+    if (data.isPaid) {
+      window.location.href = `/gift.html?id=${giftId}&paid=true`;
+      return;
+    }
+
+    const name = data.formData?.partnerName || 'someone special';
+    document.getElementById('preview-occasion').textContent = data.formData?.occasion || 'Gift';
+    document.getElementById('preview-title').textContent    = data.content?.title || `A gift for ${name}`;
+    document.getElementById('preview-for').textContent      = `For ${name}, with all my love`;
+    if (data.content?.letter) {
+      document.getElementById('preview-letter').textContent =
+        data.content.letter.split('\n')[0].slice(0, 180) + '…';
+    }
+  } catch { return showError(); }
+
+  // 2. Create PaymentIntent
+  try {
+    const res  = await fetch('/api/checkout', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ giftId }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.clientSecret) throw new Error(data.error || 'Checkout failed');
+    clientSecret = data.clientSecret;
+  } catch (e) { return showError(); }
+
+  // 3. Get publishable key
+  let pubKey;
+  try {
+    const r = await fetch('/api/config');
+    const d = await r.json();
+    pubKey = d.stripePk;
+  } catch {}
+  if (!pubKey) return showError();
+
+  // 4. Mount Stripe Elements
+  stripe = Stripe(pubKey);
+  const elements = stripe.elements();
+
+  cardNumberEl = elements.create('cardNumber', { style: stripeStyle, showIcon: true });
+  cardExpiryEl = elements.create('cardExpiry', { style: stripeStyle });
+  cardCvcEl    = elements.create('cardCvc',    { style: stripeStyle });
+
+  cardNumberEl.mount('#card-number-element');
+  cardExpiryEl.mount('#card-expiry-element');
+  cardCvcEl.mount('#card-cvc-element');
+
+  const errEl = document.getElementById('card-errors');
+  [cardNumberEl, cardExpiryEl, cardCvcEl].forEach(el =>
+    el.on('change', e => { errEl.textContent = e.error ? e.error.message : ''; })
+  );
+
+  // 5. Reveal page
+  hideLoading();
+  document.getElementById('main-page').style.display = 'block';
+}
+
+async function handlePayment() {
+  const btn   = document.getElementById('pay-btn');
+  const name  = document.getElementById('cardholder-name').value.trim();
+  const email = document.getElementById('cardholder-email').value.trim();
+  const errEl = document.getElementById('card-errors');
+
+  if (!name)  { errEl.textContent = 'Please enter the name on your card.'; return; }
+  if (!email) { errEl.textContent = 'Please enter your email address.'; return; }
+  errEl.textContent = '';
+
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+    payment_method: {
+      card: cardNumberEl,
+      billing_details: { name, email },
+    },
+  });
+
+  if (error) {
+    errEl.textContent = error.message;
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    return;
+  }
+
+  if (paymentIntent.status === 'succeeded') {
+    try { await fetch(`/api/gift/${giftId}/confirm-payment`, { method: 'POST' }); } catch {}
+    document.getElementById('success-overlay').classList.add('visible');
+    setTimeout(() => {
+      window.location.href = `/gift.html?id=${giftId}&paid=true`;
+    }, 2200);
+  }
+}
+
+function hideLoading() {
+  const el = document.getElementById('page-loading');
+  el.classList.add('hidden');
+  setTimeout(() => el.remove(), 400);
+}
+
+function showError() {
+  hideLoading();
+  document.getElementById('page-error').style.display = 'flex';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('pay-btn')?.disabled) handlePayment();
+});
+
+init();
+</script>
+
 </body>
 </html>
