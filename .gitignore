@@ -4,3 +4,5 @@ node_modules/
 data/gifts.db
 public/uploads/*
 !public/uploads/.gitkeep
+.claude/
+stripe.exe
