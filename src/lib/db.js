@@ -100,8 +100,9 @@ async function getGift(id) {
 // ── markGiftPaid ──────────────────────────────────────────────
 async function markGiftPaid(id, paymentIntentId) {
   await dbReady;
+  // COALESCE preserves existing payment intent ID if new value is null (client-side confirm-payment)
   await pool.query(
-    'UPDATE gifts SET is_paid = TRUE, stripe_payment_intent_id = $1 WHERE id = $2',
+    'UPDATE gifts SET is_paid = TRUE, stripe_payment_intent_id = COALESCE($1, stripe_payment_intent_id) WHERE id = $2',
     [paymentIntentId || null, id]
   );
 }

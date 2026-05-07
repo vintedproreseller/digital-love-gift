@@ -1,17 +1,49 @@
 /**
  * POST /api/create
- * Handles multipart form data, saves images, calls AI, saves to DB
+ * Handles multipart form data, uploads images to Cloudinary, calls AI, saves to DB
  */
 
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { v2 as cloudinary } from 'cloudinary';
 import { generateGiftContent } from '@/lib/ai';
 import { saveGift } from '@/lib/db';
 import { hashPassword } from '@/lib/password';
 
 export const dynamic = 'force-dynamic';
+
+const cloudinaryConfigured =
+  process.env.CLOUDINARY_CLOUD_NAME &&
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET;
+
+if (cloudinaryConfigured) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key:    process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+}
+
+async function uploadImage(buffer) {
+  if (cloudinaryConfigured) {
+    return new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'digital-love-gift', resource_type: 'image' },
+        (err, result) => { if (err) reject(err); else resolve(result.secure_url); }
+      );
+      stream.end(buffer);
+    });
+  }
+  // Local fallback for dev (not available on Vercel)
+  const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+  if (!existsSync(uploadDir)) await mkdir(uploadDir, { recursive: true });
+  const filename = `${uuidv4()}.jpg`;
+  await writeFile(path.join(uploadDir, filename), buffer);
+  return `/uploads/${filename}`;
+}
 
 export async function POST(request) {
   try {
@@ -45,24 +77,21 @@ export async function POST(request) {
     }
 
     // Handle image uploads
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    if (!existsSync(uploadDir)) await mkdir(uploadDir, { recursive: true });
-
-    const imageFiles = formData.getAll('images');
+    const imageFiles  = formData.getAll('images');
     const savedImages = [];
 
     for (const file of imageFiles) {
       if (!file || typeof file === 'string' || file.size === 0) continue;
       if (savedImages.length >= 5) break;
 
-      const ext      = file.name.split('.').pop().toLowerCase();
-      const allowed  = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+      const ext     = file.name.split('.').pop().toLowerCase();
+      const allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
       if (!allowed.includes(ext)) continue;
+      if (file.size > 5 * 1024 * 1024) continue;
 
-      const filename = `${uuidv4()}.${ext}`;
-      const buffer   = Buffer.from(await file.arrayBuffer());
-      await writeFile(path.join(uploadDir, filename), buffer);
-      savedImages.push(`/uploads/${filename}`);
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const url    = await uploadImage(buffer);
+      savedImages.push(url);
     }
 
     const giftFormData = {
@@ -90,7 +119,7 @@ export async function POST(request) {
       isPasswordProtected: !!password,
     };
 
-    saveGift(gift);
+    await saveGift(gift);
 
     return Response.json({ success: true, giftId });
   } catch (err) {

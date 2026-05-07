@@ -60,7 +60,19 @@ Respond ONLY with valid JSON (no markdown, no backticks) in this exact format:
   const text = response.content.find(b => b.type === 'text')?.text?.trim();
   if (!text) throw new Error('No text response from AI');
 
-  return JSON.parse(text);
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('AI returned invalid JSON — please try again');
+  }
+
+  const required = ['title', 'subtitle', 'letter', 'poem', 'reasons', 'captions', 'finalMessage'];
+  for (const key of required) {
+    if (!(key in parsed)) throw new Error(`AI response missing field: ${key}`);
+  }
+
+  return parsed;
 }
 
 module.exports = { generateGiftContent };

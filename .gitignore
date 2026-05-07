@@ -6,4 +6,3 @@ public/uploads/*
 !public/uploads/.gitkeep
 .claude/
 stripe.exe
-".claude/" 
