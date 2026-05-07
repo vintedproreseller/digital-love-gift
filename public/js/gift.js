@@ -219,9 +219,54 @@ function openEnvelope() {
 // ═══════════════════════════════════════════════════════════════
 //  RENDER GIFT
 // ═══════════════════════════════════════════════════════════════
+/**
+ * Dynamically inject / update Open Graph + Twitter meta tags.
+ * Helps JS-capable crawlers (Slack, Discord, some Twitter bots) and keeps
+ * the page's own meta consistent when the URL is /gift.html?id=…
+ */
+function injectOgMeta(gift) {
+  const origin      = window.location.origin;
+  const ogTitle     = `A gift for ${gift.formData.partnerName} 💝`;
+  const ogDesc      = `A personal ${gift.formData.occasion || 'love'} gift created just for ${gift.formData.partnerName}. Open to see something beautiful.`;
+  const ogImage     = `${origin}/api/og/${giftId}`;
+  const ogUrl       = `${origin}/gift/${giftId}`;
+
+  const tags = [
+    { attr: 'property', val: 'og:title',        content: ogTitle   },
+    { attr: 'property', val: 'og:description',  content: ogDesc    },
+    { attr: 'property', val: 'og:image',         content: ogImage   },
+    { attr: 'property', val: 'og:url',           content: ogUrl     },
+    { attr: 'property', val: 'og:type',          content: 'website' },
+    { attr: 'name',     val: 'twitter:card',     content: 'summary_large_image' },
+    { attr: 'name',     val: 'twitter:title',    content: ogTitle   },
+    { attr: 'name',     val: 'twitter:description', content: ogDesc },
+    { attr: 'name',     val: 'twitter:image',    content: ogImage   },
+  ];
+
+  tags.forEach(({ attr, val, content }) => {
+    let el = document.querySelector(`meta[${attr}="${val}"]`);
+    if (!el) {
+      el = document.createElement('meta');
+      el.setAttribute(attr, val);
+      document.head.appendChild(el);
+    }
+    el.setAttribute('content', content);
+  });
+
+  // Also add a canonical link so the clean /gift/[id] URL is preferred
+  let canonical = document.querySelector('link[rel="canonical"]');
+  if (!canonical) {
+    canonical = document.createElement('link');
+    canonical.rel = 'canonical';
+    document.head.appendChild(canonical);
+  }
+  canonical.href = ogUrl;
+}
+
 function renderGift(gift) {
   const { formData, images, content } = gift;
   document.title = `${content.title} 💝`;
+  injectOgMeta(gift);
 
   // Hero
   set('gift-occasion',     formData.occasion);
