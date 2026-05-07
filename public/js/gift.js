@@ -649,8 +649,9 @@ function toggleQR() {
     panel.classList.remove('hidden');
     if (!qrGenerated) {
       qrGenerated = true;
+      // Use canonical URL so scanning the QR also gets a proper OG preview
       new QRCode(document.getElementById('qr-code'), {
-        text:         window.location.href,
+        text:         `${window.location.origin}/gift/${giftId}`,
         width:        180,
         height:       180,
         colorDark:    '#a0485a',
@@ -690,7 +691,10 @@ function animateCount(el, target, duration) {
 // ═══════════════════════════════════════════════════════════════
 function copyLink() {
   const btn = document.getElementById('copy-link-btn');
-  navigator.clipboard.writeText(window.location.href).then(() => {
+  // Share the canonical /gift/[id] URL — it has server-rendered OG meta tags
+  // so WhatsApp / iMessage / Telegram generate a beautiful link preview.
+  const shareUrl = `${window.location.origin}/gift/${giftId}`;
+  navigator.clipboard.writeText(shareUrl).then(() => {
     btn.textContent = '✓ Copied!';
     btn.classList.add('copied');
     setTimeout(() => { btn.textContent = '🔗 Copy Link'; btn.classList.remove('copied'); }, 2500);

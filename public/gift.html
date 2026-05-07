@@ -4,6 +4,40 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>A Gift For You 💝</title>
+
+  <!-- ═══ Open Graph / Twitter Card meta tags ════════════════════════
+       Static fallbacks — gift.js updates these with real gift data
+       once the page loads. The middleware rewrites bot requests to the
+       Next.js /gift/[id] route which has fully server-rendered OG tags.
+  ════════════════════════════════════════════════════════════════════ -->
+  <meta property="og:title"       content="A Gift For You 💝"/>
+  <meta property="og:description" content="Someone created something beautiful just for you. Open to see your gift."/>
+  <meta property="og:type"        content="website"/>
+  <meta property="og:image"       content=""/>
+  <meta property="og:url"         content=""/>
+  <meta name="twitter:card"        content="summary_large_image"/>
+  <meta name="twitter:title"       content="A Gift For You 💝"/>
+  <meta name="twitter:description" content="Someone created something beautiful just for you. Open to see your gift."/>
+  <meta name="twitter:image"       content=""/>
+
+  <!-- Early inline script: set OG image + URL from query string BEFORE
+       page renders. Helps JS-capable crawlers (Googlebot, Slack, Discord).
+       Runs synchronously so meta tags are ready before any other script. -->
+  <script>
+    (function () {
+      try {
+        var id = new URLSearchParams(window.location.search).get('id');
+        if (!id) return;
+        var o = window.location.origin;
+        var img = o + '/api/og/' + id;
+        var url = o + '/gift/' + id;
+        document.querySelector('meta[property="og:image"]').setAttribute('content', img);
+        document.querySelector('meta[property="og:url"]').setAttribute('content', url);
+        document.querySelector('meta[name="twitter:image"]').setAttribute('content', img);
+      } catch (e) { /* non-fatal */ }
+    })();
+  </script>
+
   <link rel="stylesheet" href="/css/style.css"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
