@@ -539,22 +539,902 @@ body.theme-proposal  { --occ-primary:#b45309; --occ-secondary:#78350f; --occ-bg:
 @media print{
   .gift-loading,.lock-screen,.envelope-screen,
   .confetti-canvas,.petal-overlay,
-  .demo-banner,.reaction-section,.share-bar,
-  footer,.pdf-btn,.preview-lock{display:none!important}
+  .demo-banner,.mag-nav,.mag-controls,.preview-lock,
+  footer,.pdf-btn{display:none!important}
 
   body,html{background:#fff!important}
   .gift-page{background:#fff!important}
-  .gift-content{max-width:100%!important;padding:0 44px!important;display:block!important;margin-top:0!important}
-  .gift-hero{padding:32px 0 24px}
-  .gift-title{font-size:3rem!important}
-  .gift-section{page-break-inside:avoid;margin:32px 0}
-  .gift-letter{box-shadow:none!important;border:1px solid #ddd!important;font-size:.97rem!important;line-height:1.8!important}
-  .gift-poem{box-shadow:none!important;border:1px solid #ddd!important}
-  .gift-final{background:#fff!important;border:1px solid #ddd!important;padding:30px!important}
-  .fade-scroll{opacity:1!important;transform:none!important}
-  .song-vinyl{display:none!important}
-  .magazine-collage{grid-template-columns:repeat(3,1fr)!important}
-  .magazine-collage .col-item{height:160px!important;grid-column:auto!important;grid-row:auto!important}
-  .days-counter{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  @page{margin:18mm 14mm}
+  .mag-content{position:static!important;background:#fff!important;height:auto!important}
+  .magazine-scene{height:auto!important;padding:0!important;display:block!important}
+  #magazine{height:auto!important;width:100%!important}
+  .page{position:relative!important;width:100%!important;height:auto!important;min-height:100vh;page-break-after:always;overflow:visible!important;display:block!important}
+  .cover-gradient,.cover-gradient-back{-webkit-print-color-adjust:exact;print-color-adjust:exact;position:absolute!important;inset:0}
+  @page{margin:10mm;size:A4 portrait}
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MAGAZINE LAYOUT — full-screen flip-book
+═══════════════════════════════════════════════════════════════ */
+
+/* Magazine full-screen container */
+.mag-content{
+  position:fixed;
+  inset:0;
+  z-index:10;
+  background:linear-gradient(135deg,#fce4ec 0%,#f8bbd0 30%,#fdeef4 60%,#fce4ec 100%);
+  display:flex;
+  flex-direction:column;
+  animation:magazineReveal .7s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes magazineReveal{
+  from{opacity:0;transform:scale(.88) translateY(20px)}
+  to{opacity:1;transform:scale(1) translateY(0)}
+}
+
+/* Scene: wraps the book + arrow nav */
+.magazine-scene{
+  flex:1;
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  padding:12px 0;   /* no horizontal padding — arrows float over the book */
+  min-height:0;
+  box-sizing:border-box;
+}
+
+/* Magazine container must fill the scene so StPageFlip reads correct dims */
+#magazine{
+  width:100%;
+  height:100%;
+  max-width:100%;
+  overflow:hidden;
+}
+
+/* Controls bar below the book */
+.mag-controls{
+  height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(201,106,122,.18);
+  flex-shrink:0;
+}
+
+/* Navigation arrows */
+.mag-nav{
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  z-index:200;
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  background:rgba(201,106,122,.55);
+  color:#fff;
+  font-size:1.4rem;
+  border:1.5px solid rgba(255,255,255,.35);
+  cursor:pointer;
+  transition:background .2s,opacity .2s,transform .2s;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+}
+.mag-nav:hover{background:rgba(160,72,90,.8);transform:translateY(-50%) scale(1.08)}
+.mag-nav-prev{left:6px}
+.mag-nav-next{right:6px}
+.mag-nav-disabled{opacity:.22;pointer-events:none}
+
+/* Page indicator */
+.page-indicator{
+  color:rgba(160,72,90,.85);
+  font-family:var(--font-body);
+  font-size:.82rem;
+  letter-spacing:.08em;
+}
+
+/* ── Base page ─────────────────────────────────────────────── */
+.page{
+  overflow:hidden;
+  background:#fff;
+  -webkit-user-select:none;
+  user-select:none;
+  position:absolute;
+}
+
+/* Inner scroll container — pages with long content */
+.page-inner-scroll{
+  position:absolute;
+  inset:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:28px 28px 32px;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(201,106,122,.3) transparent;
+}
+.page-inner-scroll::-webkit-scrollbar{width:4px}
+.page-inner-scroll::-webkit-scrollbar-track{background:transparent}
+.page-inner-scroll::-webkit-scrollbar-thumb{background:rgba(201,106,122,.35);border-radius:4px}
+
+/* Common section heading inside pages */
+.mag-heading{
+  font-family:'Sacramento',var(--font-display),cursive;
+  font-size:2.4rem;
+  font-weight:400;
+  color:var(--text);
+  margin-bottom:18px;
+  line-height:1.2;
+  text-align:center;
+}
+
+/* ── PAGE 1: FRONT COVER ───────────────────────────────────── */
+.page-cover{
+  display:flex;
+  flex-direction:column;
+  position:relative;
+}
+.cover-gradient{
+  position:absolute;
+  inset:0;
+  background:linear-gradient(160deg,#c96a7a,#7d1d3f,#a0485a);
+  z-index:0;
+}
+.cover-masthead{
+  position:relative;
+  z-index:1;
+  text-align:center;
+  padding:16px 20px 0;
+  font-family:var(--font-body);
+  font-size:.62rem;
+  font-weight:500;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  color:rgba(255,255,255,.6);
+  border-bottom:1px solid rgba(255,255,255,.15);
+  padding-bottom:12px;
+}
+.cover-body{
+  position:relative;
+  z-index:1;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:20px 28px;
+  text-align:center;
+  gap:10px;
+}
+.cover-emoji{
+  font-size:4rem;
+  line-height:1;
+  filter:drop-shadow(0 4px 20px rgba(0,0,0,.4));
+  margin-bottom:4px;
+}
+.cover-title{
+  font-family:'Sacramento',var(--font-display),cursive;
+  font-size:clamp(2.2rem,6vw,3.6rem);
+  font-weight:400;
+  color:#fff;
+  line-height:1.15;
+  text-shadow:0 2px 20px rgba(0,0,0,.4);
+  margin:0;
+}
+.cover-for{
+  font-family:var(--font-display);
+  font-style:italic;
+  font-size:1.05rem;
+  color:rgba(255,255,255,.85);
+  margin:0;
+}
+.cover-days{
+  display:inline-flex;
+  flex-direction:column;
+  align-items:center;
+  background:rgba(255,255,255,.15);
+  backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:14px;
+  padding:10px 22px;
+  margin:4px 0;
+}
+.cover-days-num{
+  font-family:var(--font-display);
+  font-size:2.2rem;
+  font-weight:600;
+  color:#fff;
+  line-height:1;
+}
+.cover-days-lbl{
+  font-size:.65rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:rgba(255,255,255,.7);
+  margin-top:2px;
+}
+.cover-quote{
+  font-family:var(--font-display);
+  font-style:italic;
+  font-size:.95rem;
+  color:rgba(255,255,255,.8);
+  max-width:300px;
+  line-height:1.5;
+  margin:4px 0 0;
+}
+.cover-footer-bar{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 20px 14px;
+  font-size:.62rem;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:rgba(255,255,255,.5);
+  border-top:1px solid rgba(255,255,255,.12);
+}
+
+/* ── PAGE 2: LOVE LETTER ───────────────────────────────────── */
+.page-letter{
+  background:linear-gradient(170deg,#fffcf8,#fff5f0);
+  position:relative;
+}
+.letter-watermark{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-size:12rem;
+  opacity:.04;
+  pointer-events:none;
+  z-index:0;
+  line-height:1;
+}
+.letter-body{
+  position:relative;
+  z-index:1;
+  font-family:var(--font-display);
+  font-size:.93rem;
+  line-height:1.85;
+  color:var(--text);
+}
+.letter-body p{margin-bottom:1em}
+.letter-body p:last-child{margin-bottom:0}
+.drop-cap{
+  float:left;
+  font-family:'Sacramento',var(--font-display),cursive;
+  font-size:4.5rem;
+  line-height:.78;
+  color:var(--rose);
+  padding-right:6px;
+  margin-top:6px;
+}
+
+/* ── PAGE 3: PHOTO GALLERY ─────────────────────────────────── */
+.page-gallery{
+  background:#1a0a0e;
+}
+.gallery-heading{
+  color:#fff!important;
+  text-shadow:0 2px 10px rgba(0,0,0,.5);
+}
+.polaroid-grid{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  justify-content:center;
+  align-items:flex-start;
+  padding-bottom:16px;
+}
+.polaroid{
+  background:#fff;
+  padding:7px 7px 28px;
+  box-shadow:0 6px 20px rgba(0,0,0,.5),0 1px 3px rgba(0,0,0,.3);
+  transform:rotate(var(--rot,0deg));
+  transition:transform .25s ease,box-shadow .25s ease;
+  width:140px;
+  flex-shrink:0;
+}
+.polaroid:hover{
+  transform:rotate(0deg) scale(1.06);
+  box-shadow:0 12px 32px rgba(0,0,0,.6);
+}
+.polaroid img{
+  width:100%;
+  height:110px;
+  object-fit:cover;
+  display:block;
+}
+.polaroid-caption{
+  font-family:'Sacramento',var(--font-display),cursive;
+  font-size:.95rem;
+  text-align:center;
+  color:#444;
+  padding-top:4px;
+  line-height:1.3;
+}
+.no-photos-placeholder{
+  text-align:center;
+  padding:40px 20px;
+  color:rgba(255,255,255,.6);
+  font-family:var(--font-display);
+  font-style:italic;
+}
+.no-photos-art{
+  font-size:2.5rem;
+  margin-bottom:12px;
+  letter-spacing:6px;
+}
+
+/* ── PAGE 4: OUR STORY ─────────────────────────────────────── */
+.page-story{
+  background:linear-gradient(170deg,#fffcf6,#fef8ee);
+}
+.mag-timeline{
+  position:relative;
+  padding-left:24px;
+}
+.mag-timeline::before{
+  content:'';
+  position:absolute;
+  left:8px;
+  top:4px;
+  bottom:4px;
+  width:2px;
+  background:linear-gradient(to bottom,var(--blush),var(--rose),var(--blush));
+  border-radius:2px;
+}
+.mag-tl-item{
+  display:flex;
+  gap:12px;
+  margin-bottom:22px;
+  position:relative;
+}
+.mag-tl-dot{
+  flex-shrink:0;
+  width:20px;
+  text-align:center;
+  font-size:.9rem;
+  margin-top:1px;
+  position:relative;
+  left:-24px;
+  margin-right:-12px;
+}
+.mag-tl-body{flex:1}
+.mag-tl-date{
+  font-size:.68rem;
+  color:var(--rose);
+  font-weight:600;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  margin-bottom:2px;
+}
+.mag-tl-event{
+  font-family:var(--font-display);
+  font-size:1rem;
+  font-weight:600;
+  color:var(--text);
+  margin-bottom:3px;
+}
+.mag-tl-note{
+  font-size:.82rem;
+  color:var(--text-soft);
+  font-style:italic;
+  line-height:1.5;
+}
+.mag-empty-msg{
+  font-family:var(--font-display);
+  font-style:italic;
+  color:var(--text-muted);
+  text-align:center;
+  padding:20px;
+}
+
+/* ── PAGE 5: WHY I LOVE YOU ────────────────────────────────── */
+.page-reasons{
+  background:linear-gradient(160deg,#fff0f5,#fde8ed,#fff5f8);
+}
+.reasons-heading{color:var(--rose-deep)!important}
+.mag-reasons{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.mag-reason-item{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  font-family:var(--font-display);
+  font-size:1rem;
+  line-height:1.6;
+  color:var(--text);
+  padding-bottom:10px;
+  border-bottom:1px solid rgba(201,106,122,.12);
+}
+.mag-reason-item:last-child{border-bottom:none;padding-bottom:0}
+.mag-reason-num{
+  flex-shrink:0;
+  width:28px;
+  height:28px;
+  border-radius:50%;
+  background:linear-gradient(135deg,var(--rose),var(--rose-deep));
+  color:#fff;
+  font-size:.8rem;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:var(--font-body);
+  margin-top:1px;
+}
+.mag-reason-text{flex:1}
+
+/* ── PAGE 6: POEM ──────────────────────────────────────────── */
+.page-poem{
+  background:linear-gradient(160deg,#5c1a2e,#7d1d3f,#4a1025);
+}
+.poem-inner{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-height:100%;
+}
+.poem-heading{
+  color:rgba(255,255,255,.85)!important;
+  text-shadow:0 2px 12px rgba(0,0,0,.5);
+}
+.poem-frame{
+  position:relative;
+  border:1px solid rgba(201,106,122,.35);
+  border-radius:12px;
+  padding:28px 32px;
+  background:rgba(255,255,255,.04);
+  max-width:420px;
+  width:100%;
+}
+.poem-deco{
+  position:absolute;
+  font-size:1.8rem;
+  color:rgba(201,106,122,.4);
+  line-height:1;
+}
+.poem-deco-tl{top:8px;left:12px}
+.poem-deco-br{bottom:8px;right:12px;transform:rotate(180deg)}
+.mag-poem{
+  font-family:'Sacramento',var(--font-display),cursive;
+  font-size:1.5rem;
+  line-height:1.9;
+  color:rgba(255,255,255,.9);
+  text-align:center;
+  white-space:pre-line;
+  text-shadow:0 1px 8px rgba(0,0,0,.4);
+}
+
+/* ── PAGE 7: OUR SONG ──────────────────────────────────────── */
+.page-song{
+  background:linear-gradient(170deg,#2d0a45,#4a1268,#2d0a45);
+}
+.song-inner{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+}
+.song-heading{
+  color:rgba(255,255,255,.85)!important;
+}
+.mag-song-body{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:14px;
+  width:100%;
+}
+.mag-vinyl{
+  width:140px;
+  height:140px;
+  border-radius:50%;
+  background:radial-gradient(circle at 50%,#3d2030 0%,#2d1520 30%,#c96a7a 31%,#a0485a 45%,#2d1520 46%,#3d2030 60%,#c96a7a 61%,#a0485a 75%,#2d1520 76%);
+  box-shadow:0 6px 32px rgba(0,0,0,.6);
+  animation:vinylSpin 5s linear infinite;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+}
+.vinyl-inner{
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  background:linear-gradient(135deg,#fff0f3,#fde8ed);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  animation:vinylSpin 5s linear infinite reverse;
+}
+.vinyl-label-dot{font-size:1.2rem}
+.mag-song-name{
+  font-family:var(--font-display);
+  font-size:1.4rem;
+  font-weight:600;
+  color:var(--rose);
+  margin:0;
+  text-shadow:0 1px 6px rgba(0,0,0,.3);
+}
+.mag-song-note{
+  font-family:var(--font-display);
+  font-style:italic;
+  font-size:.88rem;
+  color:rgba(255,255,255,.6);
+  line-height:1.6;
+  max-width:340px;
+  margin:0;
+}
+.mag-yt-wrap{margin-top:8px;width:100%;max-width:340px}
+.yt-poster{
+  position:relative;
+  border-radius:10px;
+  overflow:hidden;
+  cursor:pointer;
+  box-shadow:0 6px 24px rgba(0,0,0,.5);
+}
+.yt-poster img{width:100%;display:block;aspect-ratio:16/9;object-fit:cover}
+.yt-play-overlay{
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,.35);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:background .2s;
+}
+.yt-play-overlay:hover{background:rgba(0,0,0,.5)}
+.yt-play-overlay span{
+  font-size:2.2rem;
+  color:#fff;
+  text-shadow:0 2px 8px rgba(0,0,0,.5);
+  line-height:1;
+}
+.mag-yt-iframe-wrap{border-radius:10px;overflow:hidden;width:100%;max-width:340px;margin:0 auto}
+.mag-yt-iframe-wrap iframe{display:block;width:100%;aspect-ratio:16/9;border:0}
+.no-song-msg{
+  font-family:var(--font-display);
+  font-style:italic;
+  font-size:1.1rem;
+  color:rgba(255,255,255,.6);
+  line-height:1.8;
+  text-align:center;
+  padding:60px 24px;
+}
+
+/* ── PAGE 8: BUCKET LIST ───────────────────────────────────── */
+.page-bucket{
+  background:linear-gradient(170deg,#fffcf4,#fef8e8);
+}
+.bucket-heading{color:#92400e!important}
+.bucket-list{
+  list-style:none;
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  padding:0;
+  counter-reset:none;
+}
+.bucket-item{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  font-family:var(--font-display);
+  font-size:1rem;
+  line-height:1.65;
+  color:var(--text);
+  padding:12px 0;
+  border-bottom:1px solid rgba(180,83,9,.1);
+}
+.bucket-item:last-child{border-bottom:none}
+.bucket-check{
+  flex-shrink:0;
+  font-size:1.15rem;
+  color:#b45309;
+  margin-top:2px;
+}
+
+/* ── PAGE 9: FINAL MESSAGE ─────────────────────────────────── */
+.page-final{
+  background:linear-gradient(160deg,#c96a7a,#7d1d3f,#a0485a);
+  display:flex;
+  flex-direction:column;
+}
+.final-page-inner{
+  position:absolute;
+  inset:0;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  padding:28px 24px 24px;
+  text-align:center;
+  gap:8px;
+}
+.final-heart-big{
+  font-size:3.5rem;
+  line-height:1;
+  filter:drop-shadow(0 4px 16px rgba(0,0,0,.35));
+  flex-shrink:0;
+}
+.final-msg{
+  font-family:'Sacramento',var(--font-display),cursive;
+  font-size:clamp(1.5rem,3.5vw,2.1rem);
+  color:#fff;
+  line-height:1.4;
+  text-shadow:0 2px 12px rgba(0,0,0,.4);
+  max-width:380px;
+}
+.final-msg::before{content:'\201C';color:rgba(255,255,255,.45);font-size:1.6em;line-height:0;vertical-align:-.3em;margin-right:2px}
+.final-msg::after{content:'\201D';color:rgba(255,255,255,.45);font-size:1.6em;line-height:0;vertical-align:-.3em;margin-left:2px}
+.final-sign{
+  font-family:var(--font-display);
+  font-style:italic;
+  font-size:.9rem;
+  color:rgba(255,255,255,.7);
+  margin:0;
+}
+
+/* Reactions on final page */
+.mag-reactions{
+  width:100%;
+  max-width:380px;
+  margin-top:4px;
+}
+.mag-reactions-title{
+  font-family:var(--font-display);
+  font-size:.9rem;
+  color:rgba(255,255,255,.75);
+  margin-bottom:8px;
+  font-style:italic;
+}
+.mag-reaction-emojis{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:8px;
+}
+.mag-reaction-emojis .reaction-btn{
+  width:44px;
+  height:44px;
+  border:2px solid rgba(255,255,255,.25);
+  background:rgba(255,255,255,.1);
+  font-size:1.4rem;
+  border-radius:50%;
+  cursor:pointer;
+  transition:transform .2s,border-color .2s;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.mag-reaction-emojis .reaction-btn:hover,.mag-reaction-emojis .reaction-btn.selected{
+  transform:scale(1.2);
+  border-color:rgba(255,255,255,.7);
+  background:rgba(255,255,255,.25);
+}
+.reaction-message-wrap .reaction-textarea{
+  background:rgba(255,255,255,.15);
+  border:1px solid rgba(255,255,255,.25);
+  color:#fff;
+  border-radius:8px;
+  width:100%;
+  padding:10px 12px;
+  font-family:var(--font-body);
+  font-size:.85rem;
+  resize:none;
+  outline:none;
+}
+.reaction-message-wrap .reaction-textarea::placeholder{color:rgba(255,255,255,.5)}
+.reaction-message-wrap .btn-primary{
+  background:rgba(255,255,255,.2);
+  border:1px solid rgba(255,255,255,.4);
+  box-shadow:none;
+}
+.reaction-sent p{color:rgba(255,255,255,.8);font-size:.85rem}
+.reaction-sent-emoji{font-size:2rem;margin-bottom:4px}
+.reactions-display{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:6px}
+.reactions-display .reaction-pill{
+  background:rgba(255,255,255,.15);
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:50px;
+  padding:4px 10px;
+  font-size:.75rem;
+  color:rgba(255,255,255,.8);
+}
+
+/* ── PAGE 10: BACK COVER ───────────────────────────────────── */
+.page-cover-back{position:relative}
+.cover-gradient-back{
+  position:absolute;
+  inset:0;
+  background:linear-gradient(160deg,#c96a7a,#7d1d3f,#a0485a);
+  z-index:0;
+  opacity:.9;
+}
+.back-cover-body{
+  position:relative;
+  z-index:1;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:32px 28px;
+  gap:18px;
+  text-align:center;
+}
+.back-cover-heart{font-size:3rem;line-height:1;filter:drop-shadow(0 4px 16px rgba(0,0,0,.35))}
+.back-cover-tagline{
+  font-family:'Sacramento',var(--font-display),cursive;
+  font-size:2.4rem;
+  color:#fff;
+  margin:0;
+  text-shadow:0 2px 12px rgba(0,0,0,.4);
+}
+.back-cover-actions{display:flex;flex-direction:column;gap:10px;width:100%;max-width:280px}
+.back-cover-actions .share-btn{
+  display:flex;
+  justify-content:center;
+  width:100%;
+  font-size:.88rem;
+  padding:11px 20px;
+}
+.back-qr-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+}
+#qr-code canvas,#qr-code img{
+  border-radius:10px;
+  border:4px solid rgba(255,255,255,.2);
+  box-shadow:0 4px 20px rgba(0,0,0,.4);
+}
+.qr-hint-mag{font-size:.72rem;color:rgba(255,255,255,.55);letter-spacing:.04em}
+.back-cover-footer{
+  font-size:.68rem;
+  color:rgba(255,255,255,.4);
+  letter-spacing:.06em;
+  position:absolute;
+  bottom:16px;
+}
+
+/* ── PREVIEW LOCK overlay on magazine ─────────────────────── */
+.preview-lock{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  z-index:300;
+  padding:50px 24px 28px;
+  background:linear-gradient(to top,rgba(13,5,8,1) 55%,transparent);
+  pointer-events:none;
+}
+.preview-lock-card{
+  max-width:440px;
+  margin:0 auto;
+  text-align:center;
+  pointer-events:all;
+}
+.preview-lock-card h3{
+  font-family:var(--font-display);
+  font-size:1.3rem;
+  color:#fff;
+  margin-bottom:6px;
+}
+.preview-lock-card p{
+  color:rgba(255,255,255,.65);
+  font-size:.85rem;
+  margin-bottom:16px;
+}
+
+/* Preview blur on locked pages */
+.preview-mode .page-letter .page-inner-scroll,
+.preview-mode .page-reasons .page-inner-scroll,
+.preview-mode .page-poem .poem-inner{
+  filter:blur(7px);
+  pointer-events:none;
+  user-select:none;
+}
+
+/* ── MOBILE RESPONSIVE ─────────────────────────────────────── */
+@media(max-width:768px){
+  .magazine-scene{
+    padding:6px 0;
+  }
+  .mag-nav{
+    width:36px;
+    height:36px;
+    font-size:1rem;
+  }
+  .mag-nav-prev{left:3px}
+  .mag-nav-next{right:3px}
+  .cover-title{font-size:2.4rem}
+  .mag-heading{font-size:2rem}
+  .mag-poem{font-size:1.25rem}
+  .final-msg{font-size:1.6rem}
+  .polaroid{width:120px}
+  .polaroid img{height:90px}
+}
+
+@media(max-width:480px){
+  .magazine-scene{padding:4px 0}
+  .mag-nav{width:32px;height:32px;font-size:.9rem}
+  .cover-emoji{font-size:3rem}
+  .cover-title{font-size:2rem}
+  .mag-heading{font-size:1.7rem}
+  .drop-cap{font-size:3.5rem}
+  .mag-poem{font-size:1.1rem}
+  .final-msg{font-size:1.4rem}
+  .polaroid{width:100px}
+  .polaroid img{height:78px}
+  .polaroid-caption{font-size:.8rem}
+}
+
+/* ── HEART QR PANEL ────────────────────────────────────────── */
+.qr-panel{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+  margin-top:16px;
+  animation:fadeInUp .4s ease both;
+}
+.heart-qr-img{
+  width:280px;
+  height:280px;
+  border-radius:8px;
+  filter:drop-shadow(0 6px 20px rgba(192,57,43,.35));
+}
+.qr-actions{
+  display:flex;
+  justify-content:center;
+}
+.qr-download-btn{
+  background:linear-gradient(135deg,#c0392b,#a93226);
+  color:#fff;
+  border:none;
+  border-radius:24px;
+  padding:10px 24px;
+  font-size:.85rem;
+  font-family:'DM Sans',sans-serif;
+  font-weight:500;
+  cursor:pointer;
+  transition:opacity .2s;
+}
+.qr-download-btn:hover{opacity:.85}
+
+/* ── TOAST NOTIFICATION ────────────────────────────────────── */
+.qr-toast{
+  position:fixed;
+  bottom:28px;
+  left:50%;
+  transform:translateX(-50%) translateY(80px);
+  background:rgba(30,10,20,.88);
+  color:#fff;
+  font-family:'DM Sans',sans-serif;
+  font-size:.87rem;
+  padding:11px 22px;
+  border-radius:24px;
+  backdrop-filter:blur(8px);
+  pointer-events:none;
+  z-index:9999;
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1), opacity .35s ease;
+  opacity:0;
+}
+.qr-toast.qr-toast-visible{
+  transform:translateX(-50%) translateY(0);
+  opacity:1;
 }

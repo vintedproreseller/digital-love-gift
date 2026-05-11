@@ -16,6 +16,11 @@ uploadArea.addEventListener('drop', e => {
 
 function addFiles(f) {
   f = f.filter(x => x.type.startsWith('image/'));
+  const tooBig = f.filter(x => x.size > 15 * 1024 * 1024);
+  if (tooBig.length) {
+    alert(`${tooBig.length} photo(s) are over 15 MB and were skipped. Please compress them first.`);
+    f = f.filter(x => x.size <= 15 * 1024 * 1024);
+  }
   const slots = 5 - selectedFiles.length;
   if (!slots) return;
   selectedFiles = [...selectedFiles, ...f.slice(0, slots)];

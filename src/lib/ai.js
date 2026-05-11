@@ -38,6 +38,10 @@ ${timelineText}
 
 For the "captions" field: write 5 short romantic photo captions (max 8 words each) that reference the specific memories and traits shared above. Each should feel like it belongs to a real photo from this couple's story — intimate and specific, not generic. Examples of the right tone: "That rainy Tuesday we never wanted to end", "Lost together, happy together", "The night we talked until sunrise".
 
+For the "bucketList" field: write exactly 5 romantic, specific things this couple should do together. Make them deeply personal — reference their actual memories, the occasion, and their traits. Not generic bucket list items. Examples: "Watch the sunrise from a rooftop like your first date", "Cook the exact meal from the restaurant where you first met together", "Get lost in a new city with no map and no plan".
+
+For the "coverQuote" field: write ONE single short quote (maximum 12 words) for the magazine cover. Make it devastating and beautiful — something that stops you in your tracks. Think poetry, not prose.
+
 Respond ONLY with valid JSON (no markdown, no backticks) in this exact format:
 {
   "title": "A poetic, deeply romantic title (max 10 words)",
@@ -48,7 +52,9 @@ Respond ONLY with valid JSON (no markdown, no backticks) in this exact format:
   "captions": ["caption1","caption2","caption3","caption4","caption5"],
   "timelineCaptions": ["Note for event 1","Note for event 2","Note for event 3"],
   "songNote": "A beautiful 2-3 sentence note about what this song means",
-  "finalMessage": "A short devastating closing message (2-3 sentences)"
+  "finalMessage": "A short devastating closing message (2-3 sentences)",
+  "bucketList": ["Thing 1","Thing 2","Thing 3","Thing 4","Thing 5"],
+  "coverQuote": "A single devastating short quote max 12 words"
 }`;
 
   const response = await anthropic.messages.create({
@@ -67,7 +73,7 @@ Respond ONLY with valid JSON (no markdown, no backticks) in this exact format:
     throw new Error('AI returned invalid JSON — please try again');
   }
 
-  const required = ['title', 'subtitle', 'letter', 'poem', 'reasons', 'captions', 'finalMessage'];
+  const required = ['title', 'subtitle', 'letter', 'poem', 'reasons', 'captions', 'finalMessage', 'bucketList', 'coverQuote'];
   for (const key of required) {
     if (!(key in parsed)) throw new Error(`AI response missing field: ${key}`);
   }

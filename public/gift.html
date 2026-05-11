@@ -44,6 +44,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Sacramento&display=swap" rel="stylesheet"/>
   <!-- QR code library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- StPageFlip magazine flip library -->
+  <script src="https://unpkg.com/page-flip/dist/js/page-flip.browser.js"></script>
 </head>
 <body class="gift-page">
 
@@ -121,131 +123,184 @@
 <!-- ══ CONFETTI CANVAS ════════════════════════════════════════ -->
 <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
 
-<!-- ══ MAIN GIFT ══════════════════════════════════════════════ -->
-<main id="gift-content" class="gift-content hidden">
+<!-- ══ MAGAZINE GIFT ══════════════════════════════════════════ -->
+<main id="gift-content" class="mag-content hidden">
 
-  <!-- HERO -->
-  <section class="gift-hero">
-    <div class="gift-occasion" id="gift-occasion"></div>
-    <h1 class="gift-title" id="gift-title"></h1>
-    <p class="gift-subtitle" id="gift-subtitle"></p>
-    <p class="gift-recipient">For <span id="gift-partner-name"></span>, with all my love</p>
-    <div id="days-counter" class="days-counter hidden">
-      <div class="days-number" id="days-number">0</div>
-      <div class="days-label">days together &amp; counting</div>
-    </div>
-    <div class="gift-date" id="gift-date"></div>
-  </section>
+  <!-- Magazine viewport -->
+  <div class="magazine-scene">
+    <button id="prev-btn" class="mag-nav mag-nav-prev" onclick="magPrev()" aria-label="Previous page">&#8592;</button>
 
-  <!-- MAGAZINE PHOTO COLLAGE -->
-  <section class="gift-section fade-scroll" id="collage-section">
-    <div class="section-ornament">📸</div>
-    <h2 class="section-heading">Our Moments</h2>
-    <div class="magazine-collage" id="magazine-collage"></div>
-  </section>
+    <div id="magazine">
 
-  <!-- LETTER with typewriter -->
-  <section class="gift-section fade-scroll">
-    <div class="section-ornament">💌</div>
-    <h2 class="section-heading">A Letter For You</h2>
-    <div class="gift-letter" id="gift-letter">
-      <div class="typewriter-text" id="typewriter-text"></div>
-    </div>
-    <button class="read-full-btn hidden" id="read-full-btn" onclick="showFullLetter()">Read full letter ↓</button>
-  </section>
+      <!-- ── PAGE 1: FRONT COVER ─────────────────────────── -->
+      <div class="page page-cover page-cover-front" data-density="hard">
+        <div class="cover-gradient" id="cover-gradient"></div>
+        <div class="cover-masthead">Digital Love Gift ✦</div>
+        <div class="cover-body">
+          <div class="cover-emoji" id="cover-emoji">💝</div>
+          <h1 class="cover-title" id="cover-title"></h1>
+          <p class="cover-for" id="cover-for"></p>
+          <div class="cover-days hidden" id="cover-days">
+            <span class="cover-days-num" id="cover-days-num">0</span>
+            <span class="cover-days-lbl">days together</span>
+          </div>
+          <p class="cover-quote" id="cover-quote"></p>
+        </div>
+        <div class="cover-footer-bar">
+          <span id="cover-occasion-badge"></span>
+          <span id="cover-issue-date"></span>
+        </div>
+      </div>
 
-  <!-- Preview lock overlay (only shown in ?preview=true mode) -->
+      <!-- ── PAGE 2: LOVE LETTER ────────────────────────── -->
+      <div class="page page-letter">
+        <div class="letter-watermark" aria-hidden="true">💗</div>
+        <div class="page-inner-scroll">
+          <h2 class="mag-heading">A Letter For You 💌</h2>
+          <div class="letter-body" id="mag-letter"></div>
+        </div>
+      </div>
+
+      <!-- ── PAGE 3: PHOTO GALLERY ──────────────────────── -->
+      <div class="page page-gallery">
+        <div class="page-inner-scroll">
+          <h2 class="mag-heading gallery-heading">Our Moments 📸</h2>
+          <div class="polaroid-grid" id="mag-photos"></div>
+          <div class="no-photos-placeholder hidden" id="no-photos">
+            <div class="no-photos-art">🌸 📷 🌸</div>
+            <p>Every moment with you is a photograph in my heart.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PAGE 4: OUR STORY ──────────────────────────── -->
+      <div class="page page-story">
+        <div class="page-inner-scroll">
+          <h2 class="mag-heading">Our Story 💫</h2>
+          <div class="mag-timeline" id="mag-timeline"></div>
+        </div>
+      </div>
+
+      <!-- ── PAGE 5: WHY I LOVE YOU ─────────────────────── -->
+      <div class="page page-reasons">
+        <div class="page-inner-scroll">
+          <h2 class="mag-heading reasons-heading">Why I Love You 💕</h2>
+          <div class="mag-reasons" id="mag-reasons"></div>
+        </div>
+      </div>
+
+      <!-- ── PAGE 6: POEM ───────────────────────────────── -->
+      <div class="page page-poem">
+        <div class="page-inner-scroll poem-inner">
+          <h2 class="mag-heading poem-heading">Written Just For You ✍️</h2>
+          <div class="poem-frame">
+            <div class="poem-deco poem-deco-tl">❧</div>
+            <div class="poem-deco poem-deco-br">❧</div>
+            <div class="mag-poem" id="mag-poem"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PAGE 7: OUR SONG ───────────────────────────── -->
+      <div class="page page-song">
+        <div class="page-inner-scroll song-inner">
+          <h2 class="mag-heading song-heading">Our Song 🎵</h2>
+          <div class="mag-song-body" id="mag-song-body">
+            <div class="mag-vinyl">
+              <div class="vinyl-inner">
+                <div class="vinyl-label-dot">🎵</div>
+              </div>
+            </div>
+            <h3 class="mag-song-name" id="mag-song-name"></h3>
+            <p class="mag-song-note" id="mag-song-note"></p>
+            <div class="mag-yt-wrap hidden" id="mag-yt-wrap"></div>
+          </div>
+          <div class="no-song-msg hidden" id="no-song">
+            <p>Every song you've ever loved<br/>is playing in my head right now. 🎶</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PAGE 8: BUCKET LIST ────────────────────────── -->
+      <div class="page page-bucket">
+        <div class="page-inner-scroll">
+          <h2 class="mag-heading bucket-heading">Things We'll Do Together 🌟</h2>
+          <ol class="bucket-list" id="mag-bucket"></ol>
+        </div>
+      </div>
+
+      <!-- ── PAGE 9: FINAL MESSAGE ──────────────────────── -->
+      <div class="page page-final">
+        <div class="final-page-inner">
+          <div class="final-heart-big">💝</div>
+          <blockquote class="final-msg" id="mag-final"></blockquote>
+          <p class="final-sign">With all my love</p>
+          <div class="mag-reactions">
+            <p class="mag-reactions-title">How did this make you feel? 💭</p>
+            <div class="reaction-emojis mag-reaction-emojis">
+              <button class="reaction-btn" data-emoji="💝" onclick="sendReaction('💝')">💝</button>
+              <button class="reaction-btn" data-emoji="💖" onclick="sendReaction('💖')">💖</button>
+              <button class="reaction-btn" data-emoji="😭" onclick="sendReaction('😭')">😭</button>
+              <button class="reaction-btn" data-emoji="🥹" onclick="sendReaction('🥹')">🥹</button>
+              <button class="reaction-btn" data-emoji="😍" onclick="sendReaction('😍')">😍</button>
+            </div>
+            <div id="reaction-message-wrap" class="reaction-message-wrap hidden">
+              <textarea id="reaction-message" class="reaction-textarea" placeholder="Add a little message back… (optional)" maxlength="200" rows="2"></textarea>
+              <button class="btn-primary" style="margin-top:8px;font-size:.82rem;padding:10px 20px" onclick="submitReaction()">Send my reaction 💌</button>
+            </div>
+            <div id="reaction-sent" class="reaction-sent hidden">
+              <div class="reaction-sent-emoji" id="reaction-sent-emoji"></div>
+              <p>Your reaction has been sent! 💌</p>
+            </div>
+            <div id="reactions-display" class="reactions-display"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PAGE 10: BACK COVER ────────────────────────── -->
+      <div class="page page-cover page-cover-back" data-density="hard">
+        <div class="cover-gradient cover-gradient-back" id="cover-gradient-back"></div>
+        <div class="back-cover-body">
+          <div class="back-cover-heart">💌</div>
+          <h2 class="back-cover-tagline">Share the love</h2>
+          <div class="back-cover-actions">
+            <button class="share-btn" id="copy-link-btn" onclick="copyLink()">🔗 Share this gift</button>
+            <button class="share-btn share-btn-outline" onclick="magGoTo(8)">💌 Send a message back</button>
+            <button class="share-btn share-btn-outline" onclick="toggleQR()">📱 Heart QR Code</button>
+          </div>
+          <div class="qr-panel hidden" id="qr-panel">
+            <img class="heart-qr-img" id="heart-qr-img" src="" alt="Heart-shaped QR code"/>
+            <div class="qr-actions">
+              <button class="qr-download-btn" onclick="downloadHeartQR()">⬇ Download QR</button>
+            </div>
+          </div>
+          <p class="back-cover-footer">Made with love · digitalgiftwithlove.com</p>
+        </div>
+      </div>
+
+    </div><!-- /#magazine -->
+
+    <button id="next-btn" class="mag-nav mag-nav-next" onclick="magNext()" aria-label="Next page">&#8594;</button>
+  </div><!-- /.magazine-scene -->
+
+  <!-- Page indicator -->
+  <div class="mag-controls">
+    <div id="page-indicator" class="page-indicator">1 / 10</div>
+  </div>
+
+  <!-- Preview lock overlay (payment gate) -->
   <div id="preview-lock" class="preview-lock hidden">
-    <h3>This is a preview</h3>
-    <p>The full letter, poem and personal reasons are waiting for you.</p>
-    <a href="#" id="preview-pay-btn" class="btn-primary btn-large">
-      <span>Unlock &amp; Share Your Gift — €5</span>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-    </a>
-  </div>
-
-  <!-- POEM -->
-  <section class="gift-section fade-scroll" id="poem-section">
-    <div class="section-ornament">✍️</div>
-    <h2 class="section-heading">Written Just For You</h2>
-    <div class="gift-poem" id="gift-poem"></div>
-  </section>
-
-  <!-- TIMELINE -->
-  <section class="gift-section fade-scroll" id="timeline-section">
-    <div class="section-ornament">💫</div>
-    <h2 class="section-heading">Our Story</h2>
-    <div class="timeline" id="timeline"></div>
-  </section>
-
-  <!-- WHY I LOVE YOU -->
-  <section class="gift-section fade-scroll">
-    <div class="section-ornament">💕</div>
-    <h2 class="section-heading">Why I Love You</h2>
-    <div class="reasons-list" id="reasons-list"></div>
-  </section>
-
-  <!-- SONG -->
-  <section class="gift-section fade-scroll" id="song-section">
-    <div class="section-ornament">🎵</div>
-    <h2 class="section-heading">Our Song</h2>
-    <div class="song-card">
-      <div class="song-vinyl" id="song-vinyl">
-        <div class="vinyl-label">🎵</div>
-      </div>
-      <div class="song-info">
-        <div class="song-name" id="song-name"></div>
-        <div class="song-note" id="song-note"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FINAL MESSAGE -->
-  <section class="gift-final fade-scroll">
-    <div class="final-hearts">💝</div>
-    <blockquote class="final-message" id="final-message"></blockquote>
-  </section>
-
-  <!-- REACTION PANEL -->
-  <section class="reaction-section fade-scroll">
-    <h3 class="reaction-title">How did this make you feel? 💭</h3>
-    <div class="reaction-emojis">
-      <button class="reaction-btn" data-emoji="💝" onclick="sendReaction('💝')">💝</button>
-      <button class="reaction-btn" data-emoji="💖" onclick="sendReaction('💖')">💖</button>
-      <button class="reaction-btn" data-emoji="😭" onclick="sendReaction('😭')">😭</button>
-      <button class="reaction-btn" data-emoji="🥹" onclick="sendReaction('🥹')">🥹</button>
-      <button class="reaction-btn" data-emoji="😍" onclick="sendReaction('😍')">😍</button>
-      <button class="reaction-btn" data-emoji="💍" onclick="sendReaction('💍')">💍</button>
-      <button class="reaction-btn" data-emoji="🫶" onclick="sendReaction('🫶')">🫶</button>
-    </div>
-    <div id="reaction-message-wrap" class="reaction-message-wrap hidden">
-      <textarea id="reaction-message" class="reaction-textarea" placeholder="Add a little message back… (optional)" maxlength="200" rows="2"></textarea>
-      <button class="btn-primary" style="margin-top:10px" onclick="submitReaction()">Send my reaction 💌</button>
-    </div>
-    <div id="reaction-sent" class="reaction-sent hidden">
-      <div class="reaction-sent-emoji" id="reaction-sent-emoji"></div>
-      <p>Your reaction has been sent! 💌</p>
-    </div>
-    <div id="reactions-display" class="reactions-display"></div>
-  </section>
-
-  <!-- SHARE + QR + PDF -->
-  <div class="share-bar fade-scroll">
-    <p>Share this gift</p>
-    <div class="share-actions">
-      <button class="share-btn" id="copy-link-btn" onclick="copyLink()">🔗 Copy Link</button>
-      <button class="share-btn share-btn-outline" onclick="toggleQR()">📱 QR Code</button>
-      <button class="pdf-btn" onclick="downloadPDF()">🖨️ Save as PDF</button>
-      <a href="/index.html" class="share-btn share-btn-outline">💝 Create Your Own</a>
-    </div>
-    <div id="qr-panel" class="qr-panel hidden">
-      <div id="qr-code"></div>
-      <p class="qr-hint">Scan to open · Print on a card 🖨️</p>
+    <div class="preview-lock-card">
+      <h3>This is a preview ✨</h3>
+      <p>The letter, poem and personal reasons are waiting for you.</p>
+      <a href="#" id="preview-pay-btn" class="btn-primary btn-large">
+        <span>Unlock &amp; Share Your Gift — €5</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
     </div>
   </div>
 
-  <footer class="footer">Made with love · Digital Love Gift</footer>
-</main>
+</main><!-- /#gift-content -->
 
 <script src="/js/gift.js"></script>
 </body>

@@ -1,37 +1,52 @@
 /**
- * gift.js — Premium Gift Viewer v5
- * Bug fixes: single DOMContentLoaded, no bg canvas, YouTube embed,
- * caption cycling, preview mode, PDF download, QR, reactions
+ * gift.js — Magazine Flip-Book Viewer v6
+ * 10-page StPageFlip magazine replacing the old scrolling layout.
+ * All existing logic preserved: password lock, payment gate,
+ * envelope animation, reactions, QR, copy link.
  */
 
 'use strict';
 
 let giftData      = null;
 let selectedEmoji = null;
-let qrGenerated   = false;
+let pageFlip      = null;
+let totalPages    = 10;
 
 const params      = new URLSearchParams(window.location.search);
 const giftId      = params.get('id') || window.location.pathname.split('/gift/')[1];
 const isPreview   = params.get('preview') === 'true';
 const isPaidParam = params.get('paid') === 'true';
 
-// ── Occasion → CSS theme class ────────────────────────────────
+// ── Occasion → theme ──────────────────────────────────────────
 const occasionThemeMap = {
   'Birthday':        'theme-birthday',
   'Anniversary':     'theme-anniversary',
   "Valentine's Day": 'theme-valentine',
   'Proposal':        'theme-proposal',
 };
+const occasionEmoji = {
+  'Birthday':        '🎂',
+  'Anniversary':     '💍',
+  "Valentine's Day": '💝',
+  'Proposal':        '💎',
+};
+const occasionGradient = {
+  'Birthday':        'linear-gradient(160deg,#d97706,#92400e,#b45309)',
+  'Anniversary':     'linear-gradient(160deg,#9f1239,#7f1d1d,#be185d)',
+  "Valentine's Day": 'linear-gradient(160deg,#e11d48,#be185d,#9d174d)',
+  'Proposal':        'linear-gradient(160deg,#b45309,#78350f,#d97706)',
+};
+const defaultGradient = 'linear-gradient(160deg,#c96a7a,#7d1d3f,#a0485a)';
+
 function applyOccasionTheme(occasion) {
   const cls = occasionThemeMap[occasion];
   if (cls) document.body.classList.add(cls);
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  SINGLE BOOT — one DOMContentLoaded only
+//  SINGLE BOOT
 // ═══════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
-  // Wire envelope click listener here (not in a second DOMContentLoaded)
   const envScr = document.getElementById('envelope-screen');
   if (envScr) {
     envScr.addEventListener('click', () => {
@@ -46,39 +61,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!res.ok) throw new Error('Not found');
     const data = await res.json();
 
-    // ── 1. Confirm payment if Stripe just redirected here ─────
+    // ── 1. Confirm payment if Stripe just redirected ──────────
     if (isPaidParam && !data.isPaid) {
       try {
         await fetch(`/api/gift/${giftId}/confirm-payment`, { method: 'POST' });
         data.isPaid = true;
-      } catch { /* non-fatal — webhook will also mark paid */ }
+      } catch { /* non-fatal */ }
     }
 
-    // ── 2. Payment gate — gift not yet paid ───────────────────
-    // Skip gate for previews; for password-protected gifts the
-    // password is their protection so we don't double-gate.
+    // ── 2. Payment gate ───────────────────────────────────────
     if (!data.isPaid && !isPreview && !data.isPasswordProtected) {
       giftData = data;
       applyOccasionTheme(data.formData?.occasion);
       hideLoading();
-      // Render whatever content we have (may be sparse for unpaid gifts)
-      if (data.content) {
+      const hasContent = !!data.content;
+      if (hasContent) {
         renderGift(giftData);
         initBackgroundStickers(data.formData?.occasion);
       }
       document.body.classList.add('preview-mode');
       show('gift-content');
+      if (hasContent) setTimeout(initMagazine, 60);
       const lockEl = document.getElementById('preview-lock');
       if (lockEl) {
         lockEl.classList.remove('hidden');
         const payBtn = document.getElementById('preview-pay-btn');
         if (payBtn) payBtn.href = `/pay.html?id=${giftId}`;
       }
-      initScrollFades();
       return;
     }
 
-    // ── 3. Preview mode (?preview=true) ───────────────────────
+    // ── 3. Preview mode ───────────────────────────────────────
     if (isPreview) {
       if (data.isPasswordProtected && !data.content) {
         window.location.href = `/gift.html?id=${giftId}`;
@@ -92,9 +105,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.body.classList.add('preview-mode');
       show('gift-content');
       show('preview-lock');
+      setTimeout(initMagazine, 60);
       const payBtn = document.getElementById('preview-pay-btn');
       if (payBtn) payBtn.href = `/pay.html?id=${giftId}`;
-      initScrollFades();
       return;
     }
 
@@ -119,7 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-//  PETAL OVERLAY — cinematic 2-3 s opening (no emoji, CSS shapes)
+//  PETAL OVERLAY
 // ═══════════════════════════════════════════════════════════════
 function showPetalOverlay(callback) {
   const overlay = document.getElementById('petal-overlay');
@@ -199,7 +212,7 @@ async function unlockGift() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  ENVELOPE — called once via the single click listener above
+//  ENVELOPE → MAGAZINE
 // ═══════════════════════════════════════════════════════════════
 function openEnvelope() {
   const env = document.getElementById('envelope');
@@ -210,131 +223,330 @@ function openEnvelope() {
     initBackgroundStickers(giftData.formData.occasion);
     show('gift-content');
     launchConfetti();
-    initScrollFades();
-    startTypewriter();
     loadReactions();
+    // Slight delay so browser paints the now-visible container
+    // before StPageFlip reads its dimensions
+    setTimeout(initMagazine, 60);
   }, 900);
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  RENDER GIFT
+//  OG META
 // ═══════════════════════════════════════════════════════════════
-/**
- * Dynamically inject / update Open Graph + Twitter meta tags.
- * Helps JS-capable crawlers (Slack, Discord, some Twitter bots) and keeps
- * the page's own meta consistent when the URL is /gift.html?id=…
- */
 function injectOgMeta(gift) {
-  const origin      = window.location.origin;
-  const ogTitle     = `A gift for ${gift.formData.partnerName} 💝`;
-  const ogDesc      = `A personal ${gift.formData.occasion || 'love'} gift created just for ${gift.formData.partnerName}. Open to see something beautiful.`;
-  const ogImage     = `${origin}/api/og/${giftId}`;
-  const ogUrl       = `${origin}/gift/${giftId}`;
+  const origin  = window.location.origin;
+  const ogTitle = `A gift for ${gift.formData.partnerName} 💝`;
+  const ogDesc  = `A personal ${gift.formData.occasion || 'love'} gift created just for ${gift.formData.partnerName}. Open to see something beautiful.`;
+  const ogImage = `${origin}/api/og/${giftId}`;
+  const ogUrl   = `${origin}/gift/${giftId}`;
 
   const tags = [
-    { attr: 'property', val: 'og:title',        content: ogTitle   },
-    { attr: 'property', val: 'og:description',  content: ogDesc    },
-    { attr: 'property', val: 'og:image',         content: ogImage   },
-    { attr: 'property', val: 'og:url',           content: ogUrl     },
-    { attr: 'property', val: 'og:type',          content: 'website' },
-    { attr: 'name',     val: 'twitter:card',     content: 'summary_large_image' },
-    { attr: 'name',     val: 'twitter:title',    content: ogTitle   },
-    { attr: 'name',     val: 'twitter:description', content: ogDesc },
-    { attr: 'name',     val: 'twitter:image',    content: ogImage   },
+    { attr: 'property', val: 'og:title',           content: ogTitle   },
+    { attr: 'property', val: 'og:description',     content: ogDesc    },
+    { attr: 'property', val: 'og:image',            content: ogImage   },
+    { attr: 'property', val: 'og:url',              content: ogUrl     },
+    { attr: 'property', val: 'og:type',             content: 'website' },
+    { attr: 'name',     val: 'twitter:card',        content: 'summary_large_image' },
+    { attr: 'name',     val: 'twitter:title',       content: ogTitle   },
+    { attr: 'name',     val: 'twitter:description', content: ogDesc    },
+    { attr: 'name',     val: 'twitter:image',       content: ogImage   },
   ];
-
   tags.forEach(({ attr, val, content }) => {
     let el = document.querySelector(`meta[${attr}="${val}"]`);
-    if (!el) {
-      el = document.createElement('meta');
-      el.setAttribute(attr, val);
-      document.head.appendChild(el);
-    }
+    if (!el) { el = document.createElement('meta'); el.setAttribute(attr, val); document.head.appendChild(el); }
     el.setAttribute('content', content);
   });
-
-  // Also add a canonical link so the clean /gift/[id] URL is preferred
   let canonical = document.querySelector('link[rel="canonical"]');
-  if (!canonical) {
-    canonical = document.createElement('link');
-    canonical.rel = 'canonical';
-    document.head.appendChild(canonical);
-  }
+  if (!canonical) { canonical = document.createElement('link'); canonical.rel = 'canonical'; document.head.appendChild(canonical); }
   canonical.href = ogUrl;
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  RENDER GIFT — populates all 10 magazine pages
+// ═══════════════════════════════════════════════════════════════
 function renderGift(gift) {
   const { formData, images, content } = gift;
   document.title = `${content.title} 💝`;
   injectOgMeta(gift);
 
-  // Hero
-  set('gift-occasion',     formData.occasion);
-  set('gift-title',        content.title);
-  set('gift-subtitle',     content.subtitle || '');
-  set('gift-partner-name', formData.partnerName);
-  set('gift-date',         formatDate(gift.createdAt));
+  const occasion = formData.occasion || '';
+  const grad     = occasionGradient[occasion] || defaultGradient;
 
-  // Days counter
+  // ── Page 1: Front Cover ──────────────────────────────────────
+  const coverGrad = document.getElementById('cover-gradient');
+  if (coverGrad) coverGrad.style.background = grad;
+
+  set('cover-emoji',          occasionEmoji[occasion] || '💝');
+  set('cover-title',          content.title);
+  set('cover-for',            `For ${formData.partnerName}`);
+  set('cover-quote',          content.coverQuote || '');
+  set('cover-issue-date',     formatDate(new Date().toISOString()));
+  set('cover-occasion-badge', occasion);
+
   if (formData.relationshipDate) {
     const days = Math.floor((Date.now() - new Date(formData.relationshipDate)) / 86400000);
-    show('days-counter');
-    animateCount(document.getElementById('days-number'), days, 2000);
+    const daysEl = document.getElementById('cover-days');
+    if (daysEl) daysEl.classList.remove('hidden');
+    set('cover-days-num', days.toLocaleString());
   }
 
-  // Photo collage
-  buildCollage(images, content.captions);
+  // ── Page 2: Love Letter ─────────────────────────────────────
+  const letter    = content.letter || '';
+  const letterEl  = document.getElementById('mag-letter');
+  if (letterEl && letter) {
+    const paras = letter.split(/\n\n+/).filter(p => p.trim());
+    letterEl.innerHTML = '';
+    paras.forEach((p, i) => {
+      const pEl = document.createElement('p');
+      if (i === 0 && p.length > 0) {
+        const first = p.charAt(0);
+        const rest  = p.slice(1);
+        pEl.innerHTML = `<span class="drop-cap">${esc(first)}</span>${esc(rest)}`;
+      } else {
+        pEl.textContent = p;
+      }
+      letterEl.appendChild(pEl);
+    });
+  }
 
-  // Letter — stored for typewriter, not rendered here
-  window._letterText = content.letter || '';
+  // ── Page 3: Photo Gallery ───────────────────────────────────
+  const photosEl = document.getElementById('mag-photos');
+  if (!images || images.length === 0) {
+    show('no-photos');
+  } else if (photosEl) {
+    const rotations = [-3, 2, -1.5, 3.5, -2.5, 1];
+    images.slice(0, 6).forEach((src, i) => {
+      const caption = content.captions && content.captions.length > 0
+        ? content.captions[i % content.captions.length]
+        : null;
+      const div = document.createElement('div');
+      div.className = 'polaroid';
+      div.style.setProperty('--rot', `${rotations[i % rotations.length]}deg`);
+      div.innerHTML = `
+        <img src="${src}" alt="Memory ${i + 1}" loading="lazy"/>
+        ${caption ? `<div class="polaroid-caption">${esc(caption)}</div>` : ''}
+      `;
+      photosEl.appendChild(div);
+    });
+  }
 
-  // Poem
-  if (content.poem) {
-    document.getElementById('gift-poem').textContent = content.poem;
+  // ── Page 4: Our Story ───────────────────────────────────────
+  buildMagTimeline(formData.timeline, content.timelineCaptions);
+
+  // ── Page 5: Why I Love You ──────────────────────────────────
+  const reasonsEl = document.getElementById('mag-reasons');
+  if (reasonsEl) {
+    (content.reasons || []).forEach((r, i) => {
+      const div = document.createElement('div');
+      div.className = 'mag-reason-item';
+      div.innerHTML = `<span class="mag-reason-num">${i + 1}</span><span class="mag-reason-text">${esc(r)}</span>`;
+      reasonsEl.appendChild(div);
+    });
+  }
+
+  // ── Page 6: Poem ────────────────────────────────────────────
+  const poemEl = document.getElementById('mag-poem');
+  if (poemEl) poemEl.textContent = content.poem || '';
+
+  // ── Page 7: Our Song ────────────────────────────────────────
+  if (!formData.song) {
+    const songBody = document.getElementById('mag-song-body');
+    if (songBody) songBody.classList.add('hidden');
+    show('no-song');
   } else {
-    hide('poem-section');
-  }
-
-  // Timeline
-  buildTimeline(formData.timeline, content.timelineCaptions);
-
-  // Reasons
-  const rList = document.getElementById('reasons-list');
-  (content.reasons || []).forEach((r, i) => {
-    const d = document.createElement('div');
-    d.className = 'reason-item fade-scroll';
-    d.innerHTML = `<div class="reason-num">${i + 1}</div><div>${esc(r)}</div>`;
-    rList.appendChild(d);
-  });
-
-  // Song + optional YouTube embed
-  if (formData.song) {
-    set('song-name', formData.song);
-    set('song-note', content.songNote || '');
+    set('mag-song-name', formData.song);
+    set('mag-song-note', content.songNote || '');
     const videoId = extractYouTubeId(formData.songUrl);
     if (videoId) {
-      const songSection = document.getElementById('song-section');
-      const wrap = document.createElement('div');
-      wrap.className = 'yt-embed-wrap';
-      wrap.innerHTML = `<iframe
-        src="https://www.youtube.com/embed/${videoId}"
-        title="${esc(formData.song)}"
-        frameborder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen
-      ></iframe>`;
-      songSection.appendChild(wrap);
+      const ytWrap = document.getElementById('mag-yt-wrap');
+      if (ytWrap) {
+        ytWrap.classList.remove('hidden');
+        ytWrap.innerHTML = `
+          <div class="yt-poster" data-vid="${videoId}" onclick="playYouTubeInMag(this)">
+            <img src="https://img.youtube.com/vi/${videoId}/mqdefault.jpg" alt="Play ${esc(formData.song)}"/>
+            <div class="yt-play-overlay"><span>&#9654;</span></div>
+          </div>`;
+      }
     }
-  } else {
-    hide('song-section');
   }
 
-  // Final message
-  set('final-message', content.finalMessage);
+  // ── Page 8: Bucket List ─────────────────────────────────────
+  const bucketEl   = document.getElementById('mag-bucket');
+  const bucketList = content.bucketList || [];
+  if (bucketEl) {
+    if (bucketList.length === 0) {
+      bucketEl.innerHTML = '<li class="bucket-item"><span class="bucket-check">🌟</span><span>Adventures await…</span></li>';
+    } else {
+      bucketList.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'bucket-item';
+        li.innerHTML = `<span class="bucket-check">☐</span><span>${esc(item)}</span>`;
+        bucketEl.appendChild(li);
+      });
+    }
+  }
+
+  // ── Page 9: Final Message ───────────────────────────────────
+  set('mag-final', content.finalMessage || '');
+
+  // ── Page 10: Back Cover ─────────────────────────────────────
+  const backGrad = document.getElementById('cover-gradient-back');
+  if (backGrad) backGrad.style.background = grad;
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  YOUTUBE ID EXTRACTION
+//  MAGAZINE — StPageFlip init
+// ═══════════════════════════════════════════════════════════════
+function initMagazine() {
+  const container = document.getElementById('magazine');
+  if (!container) return;
+
+  // StPageFlip is loaded synchronously via CDN in the <head>
+  if (!window.St || !window.St.PageFlip) {
+    console.error('StPageFlip library not loaded');
+    return;
+  }
+
+  pageFlip = new St.PageFlip(container, {
+    width:               550,
+    height:              733,
+    size:                'stretch',
+    minWidth:            280,
+    maxWidth:            620,   // single-page cap — 2-page spread stays ≤ 1240px
+    minHeight:           380,
+    maxHeight:           900,
+    showCover:           true,
+    mobileScrollSupport: false,
+    usePortrait:         true,
+    startPage:           0,
+    drawShadow:          true,
+    flippingTime:        800,
+    useMouseEvents:      true,
+  });
+
+  pageFlip.loadFromHTML(document.querySelectorAll('.page'));
+
+  totalPages = document.querySelectorAll('.page').length;
+
+  pageFlip.on('flip', e => updatePageIndicator(e.data));
+  pageFlip.on('changeState', () => {
+    const idx = pageFlip.getCurrentPageIndex();
+    updatePageIndicator(idx);
+  });
+
+  updatePageIndicator(0);
+
+  // Re-calculate layout on resize / fullscreen toggle
+  let _resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(() => { if (pageFlip) pageFlip.update(); }, 120);
+  });
+}
+
+function updatePageIndicator(pageIndex) {
+  const el = document.getElementById('page-indicator');
+  if (el) el.textContent = `${pageIndex + 1} / ${totalPages}`;
+
+  const prevBtn = document.getElementById('prev-btn');
+  const nextBtn = document.getElementById('next-btn');
+  if (prevBtn) prevBtn.classList.toggle('mag-nav-disabled', pageIndex === 0);
+  if (nextBtn) nextBtn.classList.toggle('mag-nav-disabled', pageIndex >= totalPages - 1);
+}
+
+function magPrev() {
+  if (pageFlip) pageFlip.flipPrev('bottom');
+}
+
+function magNext() {
+  if (pageFlip) pageFlip.flipNext('bottom');
+}
+
+function magGoTo(pageIndex) {
+  if (pageFlip) pageFlip.turnToPage(pageIndex);
+}
+
+// ── Heart QR ──────────────────────────────────────────────────
+function toggleQR() {
+  const panel = document.getElementById('qr-panel');
+  if (!panel) return;
+  const isHidden = panel.classList.contains('hidden');
+  panel.classList.toggle('hidden', !isHidden);
+  if (isHidden) {
+    const img = document.getElementById('heart-qr-img');
+    if (img && !img.src.includes('/api/qr/')) {
+      img.src = `${window.location.origin}/api/qr/${giftId}`;
+    }
+  }
+}
+
+async function downloadHeartQR() {
+  try {
+    const url = `${window.location.origin}/api/qr/${giftId}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('fetch failed');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `heart-qr-${giftId}.png`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('QR code downloaded! 💝');
+  } catch {
+    showToast('Could not download — try again');
+  }
+}
+
+function showToast(msg) {
+  let toast = document.getElementById('qr-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'qr-toast';
+    toast.className = 'qr-toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.add('qr-toast-visible');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('qr-toast-visible'), 2800);
+}
+
+function playYouTubeInMag(el) {
+  const vid = el.dataset.vid;
+  if (!vid) return;
+  el.outerHTML = `<div class="mag-yt-iframe-wrap">
+    <iframe src="https://www.youtube.com/embed/${vid}?autoplay=1"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen frameborder="0"></iframe>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MAGAZINE TIMELINE
+// ═══════════════════════════════════════════════════════════════
+function buildMagTimeline(timeline, captions) {
+  const c = document.getElementById('mag-timeline');
+  if (!c) return;
+  if (!timeline || timeline.length === 0) {
+    c.innerHTML = '<p class="mag-empty-msg">Your story is still being written… 💫</p>';
+    return;
+  }
+  timeline.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'mag-tl-item';
+    div.innerHTML = `
+      <div class="mag-tl-dot">💗</div>
+      <div class="mag-tl-body">
+        <div class="mag-tl-date">${formatDate(item.date)}</div>
+        <div class="mag-tl-event">${esc(item.event)}</div>
+        ${captions && captions[i] ? `<div class="mag-tl-note">${esc(captions[i])}</div>` : ''}
+      </div>`;
+    c.appendChild(div);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  YOUTUBE ID
 // ═══════════════════════════════════════════════════════════════
 function extractYouTubeId(url) {
   if (!url) return null;
@@ -345,113 +557,7 @@ function extractYouTubeId(url) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  MAGAZINE COLLAGE — captions cycle if fewer than photos
-// ═══════════════════════════════════════════════════════════════
-function buildCollage(images, captions) {
-  const grid = document.getElementById('magazine-collage');
-  if (!images || images.length === 0) { hide('collage-section'); return; }
-
-  grid.classList.add(`photos-${Math.min(images.length, 5)}`);
-  images.forEach((src, i) => {
-    // Cycle captions so there's always one per photo; cap to actual caption count
-    const caption = captions && captions.length > 0
-      ? captions[i % captions.length]
-      : null;
-    const item = document.createElement('div');
-    item.className = 'col-item';
-    item.innerHTML = `
-      <img src="${src}" alt="Memory ${i + 1}" loading="lazy"/>
-      ${caption ? `<div class="col-caption">${esc(caption)}</div>` : ''}
-    `;
-    grid.appendChild(item);
-    item.style.opacity   = '0';
-    item.style.transform = 'scale(0.94)';
-    item.style.transition = `opacity .6s ${i * 0.12}s ease, transform .6s ${i * 0.12}s ease`;
-    setTimeout(() => { item.style.opacity = '1'; item.style.transform = 'scale(1)'; }, 100);
-  });
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  TYPEWRITER LETTER — starts once, only one version shown
-// ═══════════════════════════════════════════════════════════════
-let typewriterDone = false;
-
-function startTypewriter() {
-  const container = document.getElementById('typewriter-text');
-  const fullText  = window._letterText || '';
-  if (!fullText || !container) return;
-
-  // Guard: if already started (shouldn't happen now), bail out
-  if (container.children.length > 0) return;
-
-  const paragraphs = fullText.split(/\n\n+/).filter(p => p.trim());
-  let pIdx = 0, cIdx = 0, currentP = null;
-  const cursor = document.createElement('span');
-  cursor.className = 'typewriter-cursor';
-  const speed = 18;
-
-  function typeNext() {
-    if (pIdx >= paragraphs.length) {
-      cursor.remove();
-      typewriterDone = true;
-      return;
-    }
-    if (cIdx === 0) {
-      currentP = document.createElement('p');
-      container.appendChild(currentP);
-    }
-    const para = paragraphs[pIdx];
-    if (cIdx < para.length) {
-      currentP.textContent = para.slice(0, cIdx + 1);
-      currentP.appendChild(cursor);
-      cIdx++;
-      setTimeout(typeNext, speed);
-    } else {
-      pIdx++; cIdx = 0;
-      setTimeout(typeNext, 300);
-    }
-  }
-
-  const letterEl = document.querySelector('.gift-letter');
-  const obs = new IntersectionObserver(entries => {
-    if (entries[0].isIntersecting) { obs.disconnect(); typeNext(); }
-  }, { threshold: 0.2 });
-  obs.observe(letterEl);
-}
-
-function showFullLetter() {
-  const container = document.getElementById('typewriter-text');
-  const fullText  = window._letterText || '';
-  container.innerHTML = '';
-  fullText.split(/\n\n+/).filter(p => p.trim()).forEach(p => {
-    const el = document.createElement('p');
-    el.textContent = p;
-    container.appendChild(el);
-  });
-  document.getElementById('read-full-btn')?.classList.add('hidden');
-  typewriterDone = true;
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  TIMELINE
-// ═══════════════════════════════════════════════════════════════
-function buildTimeline(timeline, captions) {
-  if (!timeline || timeline.length === 0) { hide('timeline-section'); return; }
-  const c = document.getElementById('timeline');
-  timeline.forEach((item, i) => {
-    const el = document.createElement('div');
-    el.className = 'timeline-item';
-    el.innerHTML = `
-      <div class="timeline-date">${formatDate(item.date)}</div>
-      <div class="timeline-event">${esc(item.event)}</div>
-      ${captions && captions[i] ? `<div class="timeline-note">${esc(captions[i])}</div>` : ''}
-    `;
-    c.appendChild(el);
-  });
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  CONFETTI BURST — rAF-driven, 30 particles, hard 4 s cap
+//  CONFETTI
 // ═══════════════════════════════════════════════════════════════
 function launchConfetti() {
   const canvas = document.getElementById('confetti-canvas');
@@ -462,7 +568,6 @@ function launchConfetti() {
   const ctx    = canvas.getContext('2d');
   const hearts = ['💝','💖','💗','🌸','✨','💕','🎉'];
 
-  // 30 particles max — enough for visual impact, light on the GPU
   const pieces = Array.from({ length: 30 }, () => ({
     x:     Math.random() * canvas.width,
     y:     Math.random() * canvas.height - canvas.height,
@@ -473,125 +578,78 @@ function launchConfetti() {
     angle: Math.random() * Math.PI * 2,
     emoji: hearts[Math.floor(Math.random() * hearts.length)],
     alpha: 1,
-    decay: Math.random() * 0.010 + 0.005, // slightly faster decay for 30 pieces
+    decay: Math.random() * 0.010 + 0.005,
   }));
 
-  const DURATION = 4000; // hard cap — 4 seconds
+  const DURATION = 4000;
   const startTs  = performance.now();
   let   rafId;
 
   function draw(now) {
-    // Hard 4-second kill — cancelAnimationFrame so nothing lingers
-    if (now - startTs > DURATION) {
-      cancelAnimationFrame(rafId);
-      canvas.style.display = 'none';
-      return;
-    }
-
+    if (now - startTs > DURATION) { cancelAnimationFrame(rafId); canvas.style.display = 'none'; return; }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     let alive = 0;
-
-    for (let i = 0; i < pieces.length; i++) {
-      const p = pieces[i];
+    for (const p of pieces) {
       if (p.alpha <= 0) continue;
       alive++;
-      ctx.save();
-      ctx.globalAlpha = p.alpha;
-      ctx.font        = `${p.size}px serif`;
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.angle);
+      ctx.save(); ctx.globalAlpha = p.alpha; ctx.font = `${p.size}px serif`;
+      ctx.translate(p.x, p.y); ctx.rotate(p.angle);
       ctx.fillText(p.emoji, -p.size / 2, p.size / 2);
       ctx.restore();
-      // Physics — uses canvas transforms, not DOM top/left
-      p.x     += p.vx;
-      p.y     += p.vy;
-      p.vy    += 0.12; // gravity
-      p.angle += p.spin;
-      p.alpha -= p.decay;
+      p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.angle += p.spin; p.alpha -= p.decay;
     }
-
-    if (alive > 0) {
-      rafId = requestAnimationFrame(draw);
-    } else {
-      canvas.style.display = 'none';
-    }
+    if (alive > 0) rafId = requestAnimationFrame(draw);
+    else canvas.style.display = 'none';
   }
-
   rafId = requestAnimationFrame(draw);
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  BACKGROUND STICKERS — occasion-aware, 20 elements, rAF loop
+//  BACKGROUND STICKERS
 // ═══════════════════════════════════════════════════════════════
-let _bgStickerRafId = null;
 let _bgStickerReady = false;
 
 function initBackgroundStickers(occasion) {
   if (_bgStickerReady) return;
   _bgStickerReady = true;
-
   const emojiSets = {
     'Birthday':        ['🎂','🎁','🎈','⭐','✨'],
     'Anniversary':     ['💍','🌹','💫','✨','💝'],
     "Valentine's Day": ['💝','💖','🌹','💋','✨'],
     'Proposal':        ['💍','💝','✨','🌸','💫'],
   };
-  const emojis     = emojiSets[occasion] || ['💝','💖','💗','🌸','✨'];
-  const COUNT      = 20;
-  const vh         = window.innerHeight;
-  const initTs     = performance.now();
-  // Extra space above + below the viewport so transitions are seamless
-  const travelPx   = vh + 80;
+  const emojis   = emojiSets[occasion] || ['💝','💖','💗','🌸','✨'];
+  const COUNT    = 20;
+  const vh       = window.innerHeight;
+  const initTs   = performance.now();
+  const travelPx = vh + 80;
 
   const stickers = Array.from({ length: COUNT }, () => {
     const el       = document.createElement('div');
     el.className   = 'bg-sticker';
-    const size     = Math.random() * 16 + 16;                   // 16–32 px
-    const x        = Math.random() * 100;                        // 0–100 vw
-    const duration = (Math.random() * 20 + 15) * 1000;          // 15–35 s
-    const opacity  = +(Math.random() * 0.4 + 0.4).toFixed(2);   // 0.4–0.8
-    const phase    = Math.random() * duration;                   // random start offset
-
+    const size     = Math.random() * 16 + 16;
+    const x        = Math.random() * 100;
+    const duration = (Math.random() * 20 + 15) * 1000;
+    const opacity  = +(Math.random() * 0.3 + 0.2).toFixed(2);
+    const phase    = Math.random() * duration;
     el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-    // Fixed position, below viewport initially; movement via transform only
-    el.style.cssText =
-      `left:${x}vw;bottom:${-size}px;font-size:${size}px;` +
-      `will-change:transform,opacity;`;
+    el.style.cssText = `left:${x}vw;bottom:${-size}px;font-size:${size}px;will-change:transform,opacity;`;
     document.body.appendChild(el);
-
     return { el, duration, phase, opacity };
   });
 
   function tick(ts) {
     const elapsed = ts - initTs;
-
-    for (let i = 0; i < stickers.length; i++) {
-      const s        = stickers[i];
-      const progress = ((elapsed + s.phase) % s.duration) / s.duration; // 0→1
-      const y        = -(progress * travelPx);  // 0 → -(vh+80), floats upward
-
-      // Fade out smoothly in the top 30% of travel
-      const alpha = progress > 0.7
-        ? s.opacity * (1 - (progress - 0.7) / 0.3)
-        : s.opacity;
-
-      // GPU-composited — only transform and opacity, never top/left
+    for (const s of stickers) {
+      const progress = ((elapsed + s.phase) % s.duration) / s.duration;
+      const y        = -(progress * travelPx);
+      const alpha    = progress > 0.7 ? s.opacity * (1 - (progress - 0.7) / 0.3) : s.opacity;
       s.el.style.transform = `translateY(${y}px)`;
       s.el.style.opacity   = alpha;
     }
-
-    _bgStickerRafId = requestAnimationFrame(tick);
+    requestAnimationFrame(tick);
   }
-
-  _bgStickerRafId = requestAnimationFrame(tick);
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  PDF DOWNLOAD
-// ═══════════════════════════════════════════════════════════════
-function downloadPDF() {
-  document.querySelectorAll('.fade-scroll').forEach(el => el.classList.add('visible'));
-  setTimeout(() => window.print(), 120);
+  requestAnimationFrame(tick);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -634,71 +692,30 @@ async function submitReaction() {
 
 function displayReactions(reactions) {
   const el = document.getElementById('reactions-display');
-  if (!reactions || reactions.length === 0) { el.innerHTML = ''; return; }
-  el.innerHTML = reactions.map(r =>
+  if (!reactions || reactions.length === 0) { if (el) el.innerHTML = ''; return; }
+  if (el) el.innerHTML = reactions.map(r =>
     `<div class="reaction-pill">${r.emoji}${r.message ? ' · ' + esc(r.message) : ''}</div>`
   ).join('');
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  QR CODE
-// ═══════════════════════════════════════════════════════════════
-function toggleQR() {
-  const panel = document.getElementById('qr-panel');
-  if (panel.classList.contains('hidden')) {
-    panel.classList.remove('hidden');
-    if (!qrGenerated) {
-      qrGenerated = true;
-      // Use canonical URL so scanning the QR also gets a proper OG preview
-      new QRCode(document.getElementById('qr-code'), {
-        text:         `${window.location.origin}/gift/${giftId}`,
-        width:        180,
-        height:       180,
-        colorDark:    '#a0485a',
-        colorLight:   '#fffaf8',
-        correctLevel: QRCode.CorrectLevel.M,
-      });
-    }
-  } else {
-    panel.classList.add('hidden');
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  SCROLL FADES
-// ═══════════════════════════════════════════════════════════════
-function initScrollFades() {
-  const obs = new IntersectionObserver(entries => {
-    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
-  }, { threshold: 0.1 });
-  document.querySelectorAll('.fade-scroll').forEach(el => obs.observe(el));
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  COUNT-UP
-// ═══════════════════════════════════════════════════════════════
-function animateCount(el, target, duration) {
-  const start = Date.now();
-  const iv = setInterval(() => {
-    const p = Math.min((Date.now() - start) / duration, 1);
-    el.textContent = Math.round((1 - Math.pow(1 - p, 3)) * target).toLocaleString();
-    if (p >= 1) clearInterval(iv);
-  }, 16);
 }
 
 // ═══════════════════════════════════════════════════════════════
 //  COPY LINK
 // ═══════════════════════════════════════════════════════════════
 function copyLink() {
-  const btn = document.getElementById('copy-link-btn');
-  // Share the canonical /gift/[id] URL — it has server-rendered OG meta tags
-  // so WhatsApp / iMessage / Telegram generate a beautiful link preview.
+  const btn      = document.getElementById('copy-link-btn');
   const shareUrl = `${window.location.origin}/gift/${giftId}`;
   navigator.clipboard.writeText(shareUrl).then(() => {
     btn.textContent = '✓ Copied!';
     btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = '🔗 Copy Link'; btn.classList.remove('copied'); }, 2500);
+    setTimeout(() => { btn.textContent = '🔗 Share this gift'; btn.classList.remove('copied'); }, 2500);
   });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PDF (legacy — kept for print media query)
+// ═══════════════════════════════════════════════════════════════
+function downloadPDF() {
+  window.print();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -721,10 +738,14 @@ function esc(str) {
 }
 
 // Expose globals for inline HTML handlers
-window.unlockGift     = unlockGift;
-window.copyLink       = copyLink;
-window.toggleQR       = toggleQR;
-window.downloadPDF    = downloadPDF;
-window.sendReaction   = sendReaction;
-window.submitReaction = submitReaction;
-window.showFullLetter = showFullLetter;
+window.unlockGift      = unlockGift;
+window.copyLink        = copyLink;
+window.downloadPDF     = downloadPDF;
+window.sendReaction    = sendReaction;
+window.submitReaction  = submitReaction;
+window.magPrev         = magPrev;
+window.magNext         = magNext;
+window.magGoTo         = magGoTo;
+window.playYouTubeInMag = playYouTubeInMag;
+window.toggleQR         = toggleQR;
+window.downloadHeartQR  = downloadHeartQR;

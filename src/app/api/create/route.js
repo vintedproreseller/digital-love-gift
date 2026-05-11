@@ -87,11 +87,16 @@ export async function POST(request) {
       const ext     = file.name.split('.').pop().toLowerCase();
       const allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
       if (!allowed.includes(ext)) continue;
-      if (file.size > 5 * 1024 * 1024) continue;
+      if (file.size > 15 * 1024 * 1024) continue; // skip files over 15 MB
 
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const url    = await uploadImage(buffer);
-      savedImages.push(url);
+      try {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const url    = await uploadImage(buffer);
+        savedImages.push(url);
+      } catch (uploadErr) {
+        console.error('Image upload failed, skipping:', file.name, uploadErr.message);
+        // continue with remaining photos rather than aborting the whole request
+      }
     }
 
     const giftFormData = {
