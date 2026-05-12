@@ -142,7 +142,7 @@ export async function GET(request, { params }) {
   return new Response(pngBuffer, {
     headers: {
       'Content-Type':  'image/png',
-      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
+      'Cache-Control': 'public, max-age=300, stale-while-revalidate=60',
       'Content-Disposition': `inline; filename="love-qr-${xe(id)}.png"`,
     },
   });
