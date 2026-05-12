@@ -117,22 +117,80 @@ function cycleMessages() {
   }, 3200);
 }
 
-// ── Submit — redirect to pay gate ────────────────────────────
+// ── Image compression (Canvas) ────────────────────────────────
+// Scales down to max 1920px and compresses to JPEG under 2 MB so each
+// upload-image request stays well under Vercel's 4.5 MB body limit.
+function compressImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+      const maxDim = 1920;
+      if (width > maxDim || height > maxDim) {
+        const ratio = Math.min(maxDim / width, maxDim / height);
+        width  = Math.floor(width  * ratio);
+        height = Math.floor(height * ratio);
+      }
+      canvas.width  = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+      let quality = 0.85;
+      const attempt = () => {
+        const dataUrl     = canvas.toDataURL('image/jpeg', quality);
+        const approxBytes = (dataUrl.length * 3) / 4;
+        if (approxBytes > 2 * 1024 * 1024 && quality > 0.3) {
+          quality = Math.round((quality - 0.1) * 10) / 10;
+          return attempt();
+        }
+        resolve(dataUrl);
+      };
+      attempt();
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(null); };
+    img.src = objectUrl;
+  });
+}
+
+// ── Submit — upload images first, then POST text-only form ────
 document.getElementById('gift-form').addEventListener('submit', async e => {
   e.preventDefault();
   const err = document.getElementById('form-error');
   err.classList.add('hidden');
 
-  const fd = new FormData(e.target);
-  fd.delete('images');
-  selectedFiles.forEach(f => fd.append('images', f));
-
   document.getElementById('loading-overlay').classList.remove('hidden');
   cycleMessages();
 
   try {
+    // Upload images one-at-a-time to stay under Vercel's 4.5 MB request limit
+    const imageUrls = [];
+    for (const file of selectedFiles) {
+      const dataUrl = await compressImage(file);
+      if (!dataUrl) { console.warn('Could not compress image, skipping:', file.name); continue; }
+      const res  = await fetch('/api/upload-image', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ dataUrl }),
+      });
+      let upData;
+      try { upData = await res.json(); } catch { console.warn('upload-image non-JSON response'); continue; }
+      if (upData.url) imageUrls.push(upData.url);
+      else console.warn('Image upload skipped:', upData.error);
+    }
+
+    // Main request — text fields + pre-uploaded URLs only (no binary blobs)
+    const fd = new FormData(e.target);
+    fd.delete('images');
+    imageUrls.forEach(url => fd.append('imageUrls', url));
+
     const res  = await fetch('/api/create', { method: 'POST', body: fd });
-    const data = await res.json();
+    let data;
+    try { data = await res.json(); } catch (jsonErr) {
+      throw new Error(`Server error (status ${res.status}) — please try again`);
+    }
     if (!res.ok || !data.success) throw new Error(data.error || 'Something went wrong.');
     window.location.href = `/pay.html?id=${data.giftId}`;
   } catch (ex) {

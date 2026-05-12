@@ -84,33 +84,37 @@ export async function POST(request) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Handle image uploads
-    console.log('[create] Step 2: uploading images, cloudinaryConfigured=', !!cloudinaryConfigured);
-    const imageFiles  = formData.getAll('images');
-    console.log('[create] image count:', imageFiles.length);
-    const savedImages = [];
+    // Handle images — prefer pre-uploaded URLs sent by the client (avoids Vercel body limit)
+    console.log('[create] Step 2: collecting images');
+    const preUploadedUrls = formData.getAll('imageUrls').filter(u => typeof u === 'string' && u.length > 0);
+    const savedImages = preUploadedUrls.slice(0, 5);
+    console.log('[create] pre-uploaded URLs:', savedImages.length);
 
-    for (const file of imageFiles) {
-      if (!file || typeof file === 'string' || file.size === 0) continue;
-      if (savedImages.length >= 5) break;
+    // Fallback: also handle raw binary uploads (local dev / non-Vercel)
+    if (savedImages.length === 0) {
+      const imageFiles = formData.getAll('images');
+      console.log('[create] binary image files:', imageFiles.length, 'cloudinaryConfigured=', !!cloudinaryConfigured);
+      for (const file of imageFiles) {
+        if (!file || typeof file === 'string' || file.size === 0) continue;
+        if (savedImages.length >= 5) break;
 
-      const ext     = file.name.split('.').pop().toLowerCase();
-      const allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-      if (!allowed.includes(ext)) continue;
-      if (file.size > 15 * 1024 * 1024) continue; // skip files over 15 MB
+        const ext     = file.name.split('.').pop().toLowerCase();
+        const allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        if (!allowed.includes(ext)) continue;
+        if (file.size > 15 * 1024 * 1024) continue;
 
-      console.log('[create] uploading image:', file.name, 'size:', file.size);
-      try {
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const url    = await uploadImage(buffer);
-        savedImages.push(url);
-        console.log('[create] image uploaded:', url);
-      } catch (uploadErr) {
-        console.error('[create] image upload failed, skipping:', file.name, uploadErr.message);
-        // continue with remaining photos rather than aborting the whole request
+        console.log('[create] uploading binary image:', file.name, 'size:', file.size);
+        try {
+          const buffer = Buffer.from(await file.arrayBuffer());
+          const url    = await uploadImage(buffer);
+          savedImages.push(url);
+          console.log('[create] binary image uploaded:', url);
+        } catch (uploadErr) {
+          console.error('[create] binary image upload failed, skipping:', file.name, uploadErr.message);
+        }
       }
     }
-    console.log('[create] Step 2 done: images saved:', savedImages.length);
+    console.log('[create] Step 2 done: images total:', savedImages.length);
 
     const giftFormData = {
       partnerName,
