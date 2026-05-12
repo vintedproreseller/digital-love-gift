@@ -1310,6 +1310,26 @@ body.theme-proposal  { --occ-primary:#b45309; --occ-secondary:#78350f; --occ-bg:
   position:absolute;
   bottom:16px;
 }
+.create-gift-cta{
+  display:inline-block;
+  margin-top:14px;
+  padding:11px 26px;
+  background:rgba(255,255,255,.18);
+  border:1.5px solid rgba(255,255,255,.5);
+  border-radius:30px;
+  color:#fff;
+  font-family:var(--font-display);
+  font-size:.88rem;
+  font-style:italic;
+  letter-spacing:.08em;
+  text-decoration:none;
+  backdrop-filter:blur(6px);
+  transition:background .2s,transform .2s;
+}
+.create-gift-cta:hover{
+  background:rgba(255,255,255,.3);
+  transform:scale(1.04);
+}
 
 /* ── PREVIEW LOCK overlay on magazine ─────────────────────── */
 .preview-lock{

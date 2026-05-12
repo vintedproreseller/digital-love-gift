@@ -134,11 +134,19 @@ export async function GET(request, { params }) {
     Scan to open your gift 💝
   </text>
 
-  <!-- Footer -->
-  <text x="500" y="945"
+  <!-- CTA pill button -->
+  <rect x="220" y="${gridY + QR_SIZE + 52}" width="560" height="58" rx="29"
+        fill="#c0392b" opacity="0.92"/>
+  <text x="500" y="${gridY + QR_SIZE + 88}"
         font-family="Georgia, 'Times New Roman', serif"
-        font-size="19" letter-spacing="2"
-        fill="#c0392b" text-anchor="middle" opacity="0.5">
+        font-size="24" font-weight="bold" font-style="italic"
+        fill="white" text-anchor="middle" letter-spacing="1">
+    ✦ Create your own gift ✦
+  </text>
+  <text x="500" y="${gridY + QR_SIZE + 112}"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="17" letter-spacing="1.5"
+        fill="#c0392b" text-anchor="middle" opacity="0.65">
     digitalgiftwithlove.com
   </text>
 </svg>`;
