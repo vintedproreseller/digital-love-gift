@@ -651,8 +651,9 @@ body.theme-proposal  { --occ-primary:#b45309; --occ-secondary:#78350f; --occ-bg:
   inset:0;
   overflow-y:auto;
   overflow-x:hidden;
-  -webkit-overflow-scrolling:touch; /* smooth momentum scroll on iOS */
-  overscroll-behavior:contain;      /* don't let scroll bubble up to page-flip */
+  -webkit-overflow-scrolling:touch; /* momentum scroll on iOS */
+  overscroll-behavior-y:contain;    /* stop scroll bubbling to the flip layer */
+  touch-action:pan-y;               /* browser handles vertical pan here — StPageFlip can't intercept it */
   padding:28px 28px 32px;
   scrollbar-width:thin;
   scrollbar-color:rgba(201,106,122,.3) transparent;

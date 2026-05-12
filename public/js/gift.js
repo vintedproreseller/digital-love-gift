@@ -416,7 +416,7 @@ function initMagazine() {
     minHeight:           380,
     maxHeight:           900,
     showCover:           true,
-    mobileScrollSupport: true,
+    mobileScrollSupport: false,
     usePortrait:         true,
     startPage:           0,
     drawShadow:          true,
