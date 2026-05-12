@@ -651,6 +651,8 @@ body.theme-proposal  { --occ-primary:#b45309; --occ-secondary:#78350f; --occ-bg:
   inset:0;
   overflow-y:auto;
   overflow-x:hidden;
+  -webkit-overflow-scrolling:touch; /* smooth momentum scroll on iOS */
+  overscroll-behavior:contain;      /* don't let scroll bubble up to page-flip */
   padding:28px 28px 32px;
   scrollbar-width:thin;
   scrollbar-color:rgba(201,106,122,.3) transparent;
@@ -1372,35 +1374,52 @@ body.theme-proposal  { --occ-primary:#b45309; --occ-secondary:#78350f; --occ-bg:
 /* ── MOBILE RESPONSIVE ─────────────────────────────────────── */
 @media(max-width:768px){
   .magazine-scene{
-    padding:6px 0;
+    padding:4px 0;
   }
+  /* Make the controls bar thinner to give more height to the book */
+  .mag-controls{height:36px}
+
+  /* Shrink nav arrows and push them to the very edge so they
+     don't block page content — on portrait single-page mode
+     they sit outside the book anyway */
   .mag-nav{
-    width:36px;
-    height:36px;
-    font-size:1rem;
+    width:34px;
+    height:34px;
+    font-size:.95rem;
+    /* semi-transparent so they feel less intrusive */
+    background:rgba(201,106,122,.4);
   }
-  .mag-nav-prev{left:3px}
-  .mag-nav-next{right:3px}
-  .cover-title{font-size:2.4rem}
-  .mag-heading{font-size:2rem}
-  .mag-poem{font-size:1.25rem}
-  .final-msg{font-size:1.6rem}
-  .polaroid{width:120px}
-  .polaroid img{height:90px}
+  .mag-nav-prev{left:2px}
+  .mag-nav-next{right:2px}
+
+  /* Tighten inner page padding so more content fits on screen */
+  .page-inner-scroll{padding:20px 18px 24px}
+
+  .cover-title{font-size:2.2rem}
+  .mag-heading{font-size:1.9rem}
+  .mag-poem{font-size:1.2rem}
+  .final-msg{font-size:1.5rem}
+  .polaroid{width:110px}
+  .polaroid img{height:82px}
 }
 
 @media(max-width:480px){
-  .magazine-scene{padding:4px 0}
-  .mag-nav{width:32px;height:32px;font-size:.9rem}
-  .cover-emoji{font-size:3rem}
-  .cover-title{font-size:2rem}
-  .mag-heading{font-size:1.7rem}
-  .drop-cap{font-size:3.5rem}
-  .mag-poem{font-size:1.1rem}
-  .final-msg{font-size:1.4rem}
-  .polaroid{width:100px}
-  .polaroid img{height:78px}
-  .polaroid-caption{font-size:.8rem}
+  .magazine-scene{padding:2px 0}
+  .mag-controls{height:32px}
+  .mag-nav{width:30px;height:30px;font-size:.85rem}
+  .page-inner-scroll{padding:16px 14px 20px}
+  .cover-emoji{font-size:2.8rem}
+  .cover-title{font-size:1.9rem}
+  .mag-heading{font-size:1.6rem}
+  .drop-cap{font-size:3.2rem}
+  .mag-poem{font-size:1rem}
+  .final-msg{font-size:1.3rem}
+  .letter-body{font-size:.9rem;line-height:1.7}
+  .mag-reason-text{font-size:.88rem}
+  .bucket-list{font-size:.88rem}
+  .polaroid{width:95px}
+  .polaroid img{height:72px}
+  .polaroid-caption{font-size:.75rem}
 }
 
 /* ── HEART QR PANEL ────────────────────────────────────────── */
