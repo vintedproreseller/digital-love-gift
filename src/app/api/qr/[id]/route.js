@@ -45,7 +45,7 @@ export async function GET(request, { params }) {
       errorCorrectionLevel: 'H',
       width:  QR_PX,
       margin: 4,                              // 4-module quiet zone (spec minimum)
-      color:  { dark: '#000000', light: '#ffffff' },
+      color:  { dark: '#c0392b', light: '#fff0f3' },
     });
   } catch {
     return new Response('QR generation failed', { status: 500 });
