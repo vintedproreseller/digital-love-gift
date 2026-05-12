@@ -47,7 +47,15 @@ async function uploadImage(buffer) {
 
 export async function POST(request) {
   try {
-    const formData = await request.formData();
+    console.log('[create] Step 1: parsing formData');
+    let formData;
+    try {
+      formData = await request.formData();
+    } catch (parseErr) {
+      console.error('[create] formData parse failed:', parseErr.message);
+      return Response.json({ error: `Failed to parse form data: ${parseErr.message}` }, { status: 400 });
+    }
+    console.log('[create] Step 1 done: formData parsed');
 
     // Parse fields
     const partnerName      = formData.get('partnerName');
@@ -77,7 +85,9 @@ export async function POST(request) {
     }
 
     // Handle image uploads
+    console.log('[create] Step 2: uploading images, cloudinaryConfigured=', !!cloudinaryConfigured);
     const imageFiles  = formData.getAll('images');
+    console.log('[create] image count:', imageFiles.length);
     const savedImages = [];
 
     for (const file of imageFiles) {
@@ -89,15 +99,18 @@ export async function POST(request) {
       if (!allowed.includes(ext)) continue;
       if (file.size > 15 * 1024 * 1024) continue; // skip files over 15 MB
 
+      console.log('[create] uploading image:', file.name, 'size:', file.size);
       try {
         const buffer = Buffer.from(await file.arrayBuffer());
         const url    = await uploadImage(buffer);
         savedImages.push(url);
+        console.log('[create] image uploaded:', url);
       } catch (uploadErr) {
-        console.error('Image upload failed, skipping:', file.name, uploadErr.message);
+        console.error('[create] image upload failed, skipping:', file.name, uploadErr.message);
         // continue with remaining photos rather than aborting the whole request
       }
     }
+    console.log('[create] Step 2 done: images saved:', savedImages.length);
 
     const giftFormData = {
       partnerName,
@@ -112,8 +125,12 @@ export async function POST(request) {
     };
 
     // Call Claude
+    console.log('[create] Step 3: calling AI');
     const aiContent = await generateGiftContent(giftFormData);
-    const giftId    = uuidv4();
+    console.log('[create] Step 3 done: AI response received');
+
+    const giftId = uuidv4();
+    console.log('[create] Step 4: saving gift', giftId);
 
     const gift = {
       id:                  giftId,
@@ -125,10 +142,11 @@ export async function POST(request) {
     };
 
     await saveGift(gift);
+    console.log('[create] Step 4 done: gift saved');
 
     return Response.json({ success: true, giftId });
   } catch (err) {
-    console.error('Create error:', err);
+    console.error('[create] Unhandled error:', err);
     return Response.json({ error: err.message || 'Failed to create gift' }, { status: 500 });
   }
 }

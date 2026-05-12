@@ -57,11 +57,13 @@ Respond ONLY with valid JSON (no markdown, no backticks) in this exact format:
   "coverQuote": "A single devastating short quote max 12 words"
 }`;
 
+  console.log('[ai] calling Claude API');
   const response = await anthropic.messages.create({
-    model:      'claude-sonnet-4-20250514',
+    model:      'claude-sonnet-4-6',
     max_tokens: 2500,
     messages:   [{ role: 'user', content: prompt }],
   });
+  console.log('[ai] Claude API responded, stop_reason:', response.stop_reason);
 
   const text = response.content.find(b => b.type === 'text')?.text?.trim();
   if (!text) throw new Error('No text response from AI');
@@ -69,8 +71,9 @@ Respond ONLY with valid JSON (no markdown, no backticks) in this exact format:
   let parsed;
   try {
     parsed = JSON.parse(text);
-  } catch {
-    throw new Error('AI returned invalid JSON — please try again');
+  } catch (jsonErr) {
+    console.error('[ai] JSON parse failed. Raw response (first 500 chars):', text.slice(0, 500));
+    throw new Error(`AI returned invalid JSON: ${jsonErr.message}`);
   }
 
   const required = ['title', 'subtitle', 'letter', 'poem', 'reasons', 'captions', 'finalMessage', 'bucketList', 'coverQuote'];
