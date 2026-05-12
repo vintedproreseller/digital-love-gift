@@ -1,162 +1,148 @@
 /**
  * GET /api/qr/:id
- * Returns a 1000×1000 PNG with the gift URL encoded as a heart-shaped QR code.
- * Modules outside the heart silhouette are omitted; ECC level M tolerates
- * the partial finder-pattern clipping that inevitably occurs at the bottom.
- * SVG is built first then rasterised with sharp so the result is shareable
- * on Instagram, WhatsApp, etc.
+ * Returns a 1000×1000 PNG — a fully scannable QR code styled in a romantic
+ * rose card with heart decorations. All QR modules are kept intact so
+ * iPhone / Android camera apps can reliably decode it.
  */
 
 import QRCode from 'qrcode';
 import sharp  from 'sharp';
-import { getGift } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// ─── Heart polygon ────────────────────────────────────────────────────────────
-// Six cubic Bézier curves that trace a heart centred at x=500.
-// Y range 130–880 leaves room for the "i love you" header above.
-const HEART_CURVES = [
-  // [p0x,p0y, cp1x,cp1y, cp2x,cp2y, p1x,p1y]
-  [500, 880,  100, 630,  100, 380,  100, 380],
-  [100, 380,  100, 230,  200, 130,  350, 130],
-  [350, 130,  430, 130,  500, 200,  500, 200],
-  [500, 200,  570, 130,  650, 130,  650, 130],
-  [650, 130,  800, 130,  900, 230,  900, 380],
-  [900, 380,  900, 630,  500, 880,  500, 880],
-];
-
-/** Cubic Bézier point at parameter t */
-function cubicBezierPoint(p0, cp1, cp2, p1, t) {
-  const u = 1 - t;
-  return [
-    u * u * u * p0[0] + 3 * u * u * t * cp1[0] + 3 * u * t * t * cp2[0] + t * t * t * p1[0],
-    u * u * u * p0[1] + 3 * u * u * t * cp1[1] + 3 * u * t * t * cp2[1] + t * t * t * p1[1],
-  ];
+function xe(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/** Build a polygon approximation of the heart (40 steps per Bézier segment) */
-function buildHeartPolygon() {
-  const pts = [];
-  const STEPS = 40;
-  for (const [p0x, p0y, cp1x, cp1y, cp2x, cp2y, p1x, p1y] of HEART_CURVES) {
-    for (let i = 0; i < STEPS; i++) {
-      pts.push(cubicBezierPoint([p0x, p0y], [cp1x, cp1y], [cp2x, cp2y], [p1x, p1y], i / STEPS));
-    }
-  }
-  return pts;
+/** Small heart path centred at (cx, cy) with given size */
+function heartAt(cx, cy, size, opacity = 0.18) {
+  const s = size / 20;
+  const tx = (cx - 10 * s).toFixed(1);
+  const ty = (cy - 11 * s).toFixed(1);
+  return `<path d="M10 16 C10 16 1 10 1 5 C1 2.5 3.5 1 6 1 C7.5 1 9 2 10 3.2 C11 2 12.5 1 14 1 C16.5 1 19 2.5 19 5 C19 10 10 16 10 16Z"
+    transform="translate(${tx},${ty}) scale(${s.toFixed(3)})"
+    fill="#c0392b" opacity="${opacity}"/>`;
 }
 
-/** Ray-casting point-in-polygon test */
-function pointInPolygon(px, py, polygon) {
-  let inside = false;
-  const n = polygon.length;
-  for (let i = 0, j = n - 1; i < n; j = i++) {
-    const [xi, yi] = polygon[i];
-    const [xj, yj] = polygon[j];
-    if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
-
-// ─── SVG helpers ─────────────────────────────────────────────────────────────
-function xe(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-// ─── Route handler ────────────────────────────────────────────────────────────
 export async function GET(request, { params }) {
   const { id } = await params;
 
-  // Build the URL to encode
   const origin = request.headers.get('x-forwarded-proto')
     ? `${request.headers.get('x-forwarded-proto')}://${request.headers.get('host')}`
     : new URL(request.url).origin;
   const giftUrl = `${origin}/gift/${id}`;
 
-  // Generate QR data
+  // ── Generate QR module data ───────────────────────────────────
   let qrData;
   try {
-    qrData = QRCode.create(giftUrl, { errorCorrectionLevel: 'M' });
-  } catch (err) {
+    qrData = QRCode.create(giftUrl, { errorCorrectionLevel: 'H' });
+  } catch {
     return new Response('QR generation failed', { status: 500 });
   }
 
   const n        = qrData.modules.size;
   const modules  = qrData.modules.data;
-  const cellSize = 750 / n;
-  const gridX    = 500 - (n * cellSize) / 2;   // horizontally centred
-  const gridY    = 130;                          // top of heart
 
-  const heartPolygon = buildHeartPolygon();
+  // QR grid occupies a 620×620 area centred in the card (x:190–810, y:230–850)
+  const QR_SIZE  = 620;
+  const gridX    = 500 - QR_SIZE / 2;   // 190
+  const gridY    = 230;
+  const cellSize = QR_SIZE / n;
 
-  // Build dark-module rectangles that fall inside the heart
+  // Build ALL dark modules as slightly-rounded rose rectangles
   const rects = [];
+  const r = Math.max(1, (cellSize * 0.18).toFixed(2)); // corner radius
   for (let row = 0; row < n; row++) {
     for (let col = 0; col < n; col++) {
-      if (!modules[row * n + col]) continue; // light module
-      const cx = gridX + col * cellSize + cellSize / 2;
-      const cy = gridY + row * cellSize + cellSize / 2;
-      if (!pointInPolygon(cx, cy, heartPolygon)) continue;
+      if (!modules[row * n + col]) continue;
       const x = (gridX + col * cellSize).toFixed(2);
       const y = (gridY + row * cellSize).toFixed(2);
-      const s = (cellSize + 0.5).toFixed(2); // tiny bleed to avoid gaps
-      rects.push(`<rect x="${x}" y="${y}" width="${s}" height="${s}"/>`);
+      const s = (cellSize - 0.4).toFixed(2); // tiny gap between modules
+      rects.push(`<rect x="${x}" y="${y}" width="${s}" height="${s}" rx="${r}"/>`);
     }
   }
 
-  // Heart SVG path (same control points as polygon)
-  const heartPath = 'M 500,880 C 100,630 100,380 100,380 C 100,230 200,130 350,130 C 430,130 500,200 500,200 C 500,200 570,130 650,130 C 800,130 900,230 900,380 C 900,380 900,630 500,880 Z';
+  // ── Decorative hearts scattered around the background ─────────
+  const bgHearts = [
+    [60,  60,  28], [940, 60,  22], [60,  940, 22], [940, 940, 28],
+    [500, 40,  18], [40,  500, 16], [960, 500, 16], [500, 960, 18],
+    [150, 150, 14], [850, 150, 14], [150, 850, 14], [850, 850, 14],
+    [300, 80,  12], [700, 80,  12], [80,  300, 12], [920, 300, 12],
+    [80,  700, 12], [920, 700, 12], [300, 920, 12], [700, 920, 12],
+  ].map(([cx, cy, sz]) => heartAt(cx, cy, sz, 0.15)).join('\n  ');
 
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg width="1000" height="1000" viewBox="0 0 1000 1000"
-     xmlns="http://www.w3.org/2000/svg">
+<svg width="1000" height="1000" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Sacramento&amp;display=swap');
-    </style>
-    <linearGradient id="heartBg" x1="0%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%"   stop-color="#fce4ec"/>
-      <stop offset="100%" stop-color="#f8bbd0"/>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#fff5f8"/>
+      <stop offset="50%"  stop-color="#fce4ec"/>
+      <stop offset="100%" stop-color="#fad4e0"/>
     </linearGradient>
+    <linearGradient id="cardStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#f48fb1"/>
+      <stop offset="100%" stop-color="#c0392b"/>
+    </linearGradient>
+    <filter id="cardShadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="18" flood-color="#c0392b" flood-opacity="0.13"/>
+    </filter>
   </defs>
 
-  <!-- White background -->
-  <rect width="1000" height="1000" fill="#ffffff"/>
+  <!-- Background -->
+  <rect width="1000" height="1000" fill="url(#bg)"/>
+
+  <!-- Scattered background hearts -->
+  ${bgHearts}
+
+  <!-- White card -->
+  <rect x="80" y="80" width="840" height="840" rx="36"
+        fill="white" filter="url(#cardShadow)"
+        stroke="url(#cardStroke)" stroke-width="2.5" opacity="0.95"/>
+
+  <!-- Card top accent line -->
+  <rect x="80" y="80" width="840" height="6" rx="3" fill="url(#cardStroke)" opacity="0.7"/>
+
+  <!-- Header hearts -->
+  ${heartAt(160, 155, 32, 0.55)}
+  ${heartAt(840, 155, 32, 0.55)}
 
   <!-- "i love you" header -->
-  <text x="500" y="72" font-family="Sacramento, cursive" font-size="72"
-        fill="#c0392b" text-anchor="middle" opacity="0.9">i love you</text>
+  <text x="500" y="178"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="52" font-style="italic" font-weight="400"
+        fill="#c0392b" text-anchor="middle" opacity="0.92"
+        letter-spacing="3">i love you</text>
 
-  <!-- Small heart icon below text -->
-  <path d="M500,118 C500,118 488,108 488,100 C488,95 492,92 496,92 C498,92 500,94 500,94 C500,94 502,92 504,92 C508,92 512,95 512,100 C512,108 500,118 500,118Z"
-        fill="#c0392b" opacity="0.7"/>
+  <!-- Divider dots -->
+  <text x="500" y="215" font-family="serif" font-size="18"
+        fill="#e57373" text-anchor="middle" opacity="0.5">· · · · ·</text>
 
-  <!-- Heart outline (subtle background fill) -->
-  <path d="${xe(heartPath)}" fill="url(#heartBg)" opacity="0.25"/>
-
-  <!-- QR modules clipped to heart shape -->
+  <!-- QR code — ALL modules intact, rose coloured -->
+  <rect x="${gridX - 8}" y="${gridY - 8}" width="${QR_SIZE + 16}" height="${QR_SIZE + 16}"
+        fill="white" rx="4"/>
   <g fill="#c0392b">
     ${rects.join('\n    ')}
   </g>
 
-  <!-- Heart outline stroke -->
-  <path d="${xe(heartPath)}" fill="none" stroke="#c0392b" stroke-width="3" opacity="0.35"/>
+  <!-- "Scan to open your gift" label -->
+  <text x="500" y="${gridY + QR_SIZE + 34}"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="22" font-style="italic"
+        fill="#c0392b" text-anchor="middle" opacity="0.7">
+    Scan to open your gift 💝
+  </text>
 
   <!-- Footer -->
-  <text x="500" y="960" font-family="Georgia, serif" font-size="22"
-        fill="#c0392b" text-anchor="middle" letter-spacing="2" opacity="0.6">
+  <text x="500" y="945"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="19" letter-spacing="2"
+        fill="#c0392b" text-anchor="middle" opacity="0.5">
     digitalgiftwithlove.com
   </text>
 </svg>`;
 
-  // Rasterise SVG → PNG at 2× for crisp Instagram/WhatsApp sharing
   const pngBuffer = await sharp(Buffer.from(svg))
     .resize(1000, 1000)
     .png()
@@ -166,7 +152,7 @@ export async function GET(request, { params }) {
     headers: {
       'Content-Type':  'image/png',
       'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
-      'Content-Disposition': `inline; filename="love-qr-${id}.png"`,
+      'Content-Disposition': `inline; filename="love-qr-${xe(id)}.png"`,
     },
   });
 }
