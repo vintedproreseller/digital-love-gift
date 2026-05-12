@@ -436,6 +436,15 @@ function initMagazine() {
 
   updatePageIndicator(0);
 
+  // Stop touch events from bubbling out of scrollable page content.
+  // StPageFlip listens on the container; if we stopPropagation inside
+  // each scroll area, the library never sees the touch and the browser
+  // handles vertical scrolling natively (passive so scroll isn't blocked).
+  document.querySelectorAll('.page-inner-scroll').forEach(el => {
+    el.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+    el.addEventListener('touchmove',  e => e.stopPropagation(), { passive: true });
+  });
+
   // Re-calculate layout on resize / fullscreen toggle
   let _resizeTimer;
   window.addEventListener('resize', () => {
