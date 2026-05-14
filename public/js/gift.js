@@ -497,10 +497,10 @@ async function downloadHeartQR() {
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `heart-qr-${giftId}.png`;
+    a.download = 'heart-qr.png';
     a.click();
     URL.revokeObjectURL(a.href);
-    showToast('QR code downloaded! 💝');
+    showToast('Downloaded! Share it on Instagram 💝');
   } catch {
     showToast('Could not download — try again');
   }
