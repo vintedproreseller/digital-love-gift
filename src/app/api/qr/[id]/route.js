@@ -1,13 +1,11 @@
 /**
  * GET /api/qr/:id
- * Returns a 1000×1000 PNG — a scannable QR code with a heart logo in the
- * centre, on a rose-branded card.
+ * Heart-shaped QR code: modules that fall outside the heart are omitted,
+ * giving the whole QR the silhouette of a heart.
  *
- * Technique: "logo-in-QR" — the full rectangular QR is generated with
- * error-correction level H (recovers up to 30 % data loss).  A heart SVG
- * is composited over the centre (~14 % of area), which ECC H handles
- * easily.  All three finder-pattern corners remain untouched, so every
- * iPhone / Android camera app can decode it instantly.
+ * ECC level H tolerates up to 30 % data loss, so clipping ~10-15 % of
+ * edge modules is safe.  All three finder-pattern corners sit within the
+ * algebraic heart at the normalised positions they occupy.
  */
 
 import QRCode from 'qrcode';
@@ -21,6 +19,18 @@ function xe(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/**
+ * Algebraic heart: (x²+y²−1)³ − x²y³ ≤ 0
+ * nx, ny  normalised to [−1, 1] with (0,0) = image centre.
+ * We flip ny so the image top row maps to the bumps of the heart.
+ */
+function isInHeart(nx, ny) {
+  const x = nx;
+  const y = -ny;
+  const a = x * x + y * y - 1;
+  return a * a * a - x * x * y * y * y <= 0.04; // tiny tolerance for edge modules
+}
+
 export async function GET(request, { params }) {
   const { id } = await params;
 
@@ -29,54 +39,47 @@ export async function GET(request, { params }) {
     : new URL(request.url).origin;
   const giftUrl = `${origin}/gift/${id}`;
 
-  // ── Step 1: QR code as PNG (dark red on white, ECC H) ────────────────────────
-  const QR_PX = 580;
-  let qrBuffer;
+  let qr;
   try {
-    qrBuffer = await QRCode.toBuffer(giftUrl, {
-      errorCorrectionLevel: 'H',
-      width:  QR_PX,
-      margin: 3,
-      color:  { dark: '#8b1a2f', light: '#ffffff' },  // deep rose-red on white
-    });
+    qr = QRCode.create(giftUrl, { errorCorrectionLevel: 'H' });
   } catch {
     return new Response('QR generation failed', { status: 500 });
   }
 
-  // ── Step 2: Heart overlay — centred on the QR ────────────────────────────────
-  const H   = 200;
-  const W   = 200;
-  const hLeft = Math.round((QR_PX - W) / 2);
-  const hTop  = Math.round((QR_PX - H) / 2);
+  const size = qr.modules.size;
+  const data = qr.modules.data;
 
-  const p = (x, y) => `${(x * W).toFixed(1)},${(y * H).toFixed(1)}`;
-  const heartPath = [
-    `M ${p(0.5, 0.88)}`,
-    `C ${p(0.5,  0.88)} ${p(0.05, 0.58)} ${p(0.05, 0.35)}`,
-    `C ${p(0.05, 0.14)} ${p(0.20, 0.04)} ${p(0.34, 0.04)}`,
-    `C ${p(0.42, 0.04)} ${p(0.50, 0.15)} ${p(0.50, 0.15)}`,
-    `C ${p(0.50, 0.15)} ${p(0.58, 0.04)} ${p(0.66, 0.04)}`,
-    `C ${p(0.80, 0.04)} ${p(0.95, 0.14)} ${p(0.95, 0.35)}`,
-    `C ${p(0.95, 0.58)} ${p(0.5,  0.88)} ${p(0.5,  0.88)} Z`,
-  ].join(' ');
+  const IMG = 900;
+  const PAD = 40;                     // whitespace around the heart
+  const area = IMG - PAD * 2;
+  const m = area / size;              // px per module
 
-  const heartSvg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <radialGradient id="hg" cx="42%" cy="35%" r="55%">
-      <stop offset="0%"   stop-color="#ff8fa3"/>
-      <stop offset="100%" stop-color="#c0392b" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <path d="${heartPath}" fill="white"/>
-  <path d="${heartPath}" fill="#e8405a"/>
-  <path d="${heartPath}" fill="url(#hg)" opacity="0.55"/>
+  const rects = [];
+  for (let row = 0; row < size; row++) {
+    for (let col = 0; col < size; col++) {
+      if (!data[row * size + col]) continue;
+
+      // Centre of this module in [−1, 1] space
+      const nx = ((col + 0.5) / size) * 2 - 1;
+      const ny = ((row + 0.5) / size) * 2 - 1;
+      if (!isInHeart(nx, ny)) continue;
+
+      const x = (PAD + col * m).toFixed(2);
+      const y = (PAD + row * m).toFixed(2);
+      const s = m.toFixed(2);
+      rects.push(`<rect x="${x}" y="${y}" width="${s}" height="${s}"/>`);
+    }
+  }
+
+  // Single fill on a <g> keeps SVG small
+  const svg = `<svg width="${IMG}" height="${IMG}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${IMG}" height="${IMG}" fill="white"/>
+  <g fill="#c8185a">
+    ${rects.join('\n    ')}
+  </g>
 </svg>`;
 
-  // ── Step 3: Composite heart onto QR — that's the final image ─────────────────
-  const pngBuffer = await sharp(qrBuffer)
-    .composite([{ input: Buffer.from(heartSvg), left: hLeft, top: hTop }])
-    .png()
-    .toBuffer();
+  const pngBuffer = await sharp(Buffer.from(svg)).png().toBuffer();
 
   return new Response(pngBuffer, {
     headers: {
