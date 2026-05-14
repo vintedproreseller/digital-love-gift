@@ -1,3 +1,10 @@
+/**
+ * GET /api/qr/:id
+ * Generates a clean square QR code (dark maroon on white, ECC H)
+ * with a glossy pink heart composited in the centre.
+ * The heart covers ~14% of area — well within ECC H's 30% recovery budget.
+ */
+
 import QRCode from 'qrcode';
 import sharp  from 'sharp';
 
@@ -9,22 +16,6 @@ function xe(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// Returns SVG <rect> elements for every dark module in the QR matrix.
-// Modules are rendered inside a 400×400 square starting at (0,0).
-function qrRects(modules) {
-  const size = modules.size;
-  const m    = 400 / size;
-  let out    = '';
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      if (modules.data[r * size + c]) {
-        out += `<rect x="${(c * m).toFixed(2)}" y="${(r * m).toFixed(2)}" width="${m.toFixed(2)}" height="${m.toFixed(2)}"/>`;
-      }
-    }
-  }
-  return out;
-}
-
 export async function GET(request, { params }) {
   const { id } = await params;
 
@@ -33,64 +24,50 @@ export async function GET(request, { params }) {
     : new URL(request.url).origin;
   const giftUrl = `${origin}/gift/${id}`;
 
-  let qr;
+  // ── 1. QR code as PNG ────────────────────────────────────────────────────────
+  let qrBuf;
   try {
-    qr = QRCode.create(giftUrl, { errorCorrectionLevel: 'H' });
+    qrBuf = await QRCode.toBuffer(giftUrl, {
+      errorCorrectionLevel: 'H',
+      width:  600,
+      margin: 2,
+      color:  { dark: '#8b1a2f', light: '#ffffff' },
+    });
   } catch {
     return new Response('QR generation failed', { status: 500 });
   }
 
-  // Build the rect string once — reused for all three pieces.
-  const rects = qrRects(qr.modules);
+  // ── 2. Glossy heart SVG ──────────────────────────────────────────────────────
+  // Heart path drawn on a 200×200 canvas, tip at bottom-centre.
+  const W = 200, H = 190;
+  const heart =
+    `M100,170 C100,170 10,115 10,68 C10,32 35,10 62,10 ` +
+    `C78,10 92,22 100,34 C108,22 122,10 138,10 ` +
+    `C165,10 190,32 190,68 C190,115 100,170 100,170Z`;
 
-  // ── SVG layout (900×900 canvas) ─────────────────────────────────────────────
-  //
-  //  Left  circle: cx=225, cy=220, r=225  → right edge exactly at x=450
-  //  Right circle: cx=675, cy=220, r=225  → left  edge exactly at x=450
-  //  Both circles touch at (450, 220) — the center dip of the heart.
-  //
-  //  Diamond: QR rotated 45°, scale=0.78 so its width when rotated ≈ 440px
-  //  (matching the combined width of the two bump circles).
-  //  Half-diagonal = 200 × 0.78 × √2 ≈ 221px, so:
-  //    top    vertex → y = 580 − 221 ≈ 359  (overlaps circle bottoms at y≈445)
-  //    bottom vertex → y = 580 + 221 ≈ 801  (heart point)
-  //    left/right    → x = 450 ± 221 → 229 … 671
-  //
-  //  The overlap between circles (bottom) and diamond (top) is all-pink so
-  //  the pieces merge seamlessly with no white gap.
-
-  const svg = `<svg width="900" height="900" viewBox="0 0 900 900" xmlns="http://www.w3.org/2000/svg">
+  const heartSvg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <clipPath id="lc"><circle cx="225" cy="220" r="225"/></clipPath>
-    <clipPath id="rc"><circle cx="675" cy="220" r="225"/></clipPath>
+    <radialGradient id="body" cx="42%" cy="35%" r="58%">
+      <stop offset="0%"   stop-color="#ff9eb5"/>
+      <stop offset="45%"  stop-color="#f0506e"/>
+      <stop offset="100%" stop-color="#c0183e"/>
+    </radialGradient>
+    <radialGradient id="shine" cx="36%" cy="28%" r="32%">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="900" height="900" fill="white"/>
-
-  <!-- Left bump: QR rotated -90°, clipped to left circle (right edge at x=450) -->
-  <g clip-path="url(#lc)" fill="#c8185a">
-    <g transform="translate(225,220) rotate(-90) translate(-200,-200)">
-      ${rects}
-    </g>
-  </g>
-
-  <!-- Right bump: QR rotated +90°, clipped to right circle (left edge at x=450) -->
-  <g clip-path="url(#rc)" fill="#c8185a">
-    <g transform="translate(675,220) rotate(90) translate(-200,-200)">
-      ${rects}
-    </g>
-  </g>
-
-  <!-- Diamond: QR rotated 45°, scale 0.78 — the scannable piece -->
-  <g fill="#c8185a">
-    <g transform="translate(450,580) rotate(45) scale(0.78) translate(-200,-200)">
-      ${rects}
-    </g>
-  </g>
+  <path d="${heart}" fill="url(#body)"/>
+  <path d="${heart}" fill="url(#shine)"/>
 </svg>`;
 
-  const png = await sharp(Buffer.from(svg))
-    .resize(1000, 1000)
-    .flatten({ background: { r: 255, g: 255, b: 255 } })
+  // ── 3. Composite heart centred on QR ────────────────────────────────────────
+  const qrSize  = 600;
+  const heartLeft = Math.round((qrSize - W) / 2);
+  const heartTop  = Math.round((qrSize - H) / 2);
+
+  const png = await sharp(qrBuf)
+    .composite([{ input: Buffer.from(heartSvg), left: heartLeft, top: heartTop }])
     .png()
     .toBuffer();
 
