@@ -412,7 +412,7 @@ function initMagazine() {
     height:              733,
     size:                'stretch',
     minWidth:            280,
-    maxWidth:            620,   // single-page cap — 2-page spread stays ≤ 1240px
+    maxWidth:            620,
     minHeight:           380,
     maxHeight:           900,
     showCover:           true,
@@ -421,7 +421,7 @@ function initMagazine() {
     startPage:           0,
     drawShadow:          true,
     flippingTime:        800,
-    useMouseEvents:      true,
+    useMouseEvents:      false,  // arrows only — no click/drag on pages
   });
 
   pageFlip.loadFromHTML(document.querySelectorAll('.page'));
