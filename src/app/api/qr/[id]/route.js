@@ -17,51 +17,56 @@ export async function GET(request, { params }) {
     : new URL(request.url).origin;
   const giftUrl = `${origin}/gift/${id}`;
 
-  const qrOpts = { errorCorrectionLevel: 'H', margin: 1, color: { dark: '#c8185a', light: '#ffffff' } };
+  const opts = { errorCorrectionLevel: 'H', margin: 1, color: { dark: '#c8185a', light: '#ffffff' } };
 
-  // Generate three QR buffers for the same URL
+  // Two bump circles side-by-side span the same width as the main QR
+  // so all three pieces align perfectly left-to-right.
+  const CIRCLE_D = 280;   // diameter of each bump — two × this = main QR width
+  const CIRCLE_R = 140;
+  const MAIN_SZ  = 560;   // main scannable QR (2 × CIRCLE_D)
+  const CANVAS   = 1000;
+
   const [mainBuf, bumpBuf] = await Promise.all([
-    QRCode.toBuffer(giftUrl, { ...qrOpts, width: 560 }),
-    QRCode.toBuffer(giftUrl, { ...qrOpts, width: 480 }),
+    QRCode.toBuffer(giftUrl, { ...opts, width: MAIN_SZ }),
+    QRCode.toBuffer(giftUrl, { ...opts, width: CIRCLE_D }),
   ]);
 
-  // Bump radius = half the bump QR width
-  const BUMP  = 240;   // half of 480
-  const BUMP_FULL = 480;
+  // Circular mask: SVG rounded-rect with rx = ry = half size produces a perfect circle.
+  // sharp's dest-in blend keeps destination pixels only where the mask is opaque (inside circle).
+  const circleMask = Buffer.from(
+    `<svg width="${CIRCLE_D}" height="${CIRCLE_D}">` +
+    `<rect width="${CIRCLE_D}" height="${CIRCLE_D}" rx="${CIRCLE_R}" ry="${CIRCLE_R}"/>` +
+    `</svg>`
+  );
 
-  // Left bump  = left  half of bumpBuf (cols 0..239)
-  // Right bump = right half of bumpBuf (cols 240..479)
-  const [leftHalf, rightHalf] = await Promise.all([
-    sharp(bumpBuf).extract({ left: 0,    top: 0, width: BUMP, height: BUMP_FULL }).toBuffer(),
-    sharp(bumpBuf).extract({ left: BUMP, top: 0, width: BUMP, height: BUMP_FULL }).toBuffer(),
-  ]);
+  const circularQR = await sharp(bumpBuf)
+    .ensureAlpha()
+    .composite([{ input: circleMask, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
 
-  // ── Layout ──────────────────────────────────────────────────────────────────
-  // Canvas: 1000 × 1000 white
-  // Two bumps sit on top, touching at x = 500.
-  // Main 560×560 QR below, centered, slightly overlapping the bumps.
+  // ── Layout on 1000×1000 white canvas ────────────────────────────────────────
   //
-  //   left bump  right bump
-  //    x=260        x=500       (each 240 px wide, so right edge of left = 500)
-  //    y=40         y=40        top of bumps
+  //   x=220        x=500       x=780
+  //   [  circle  ][  circle  ]          y=60 … y=340  (circles, 280px tall)
+  //   [     main QR 560×560  ]          y=320 … y=880  (20px overlap with circles)
   //
-  //   main QR
-  //    x=220  y=380             centered: (1000-560)/2 = 220
-  //                             top of main overlaps bottom of bumps
+  // The two circles together are 560px wide, flush with the main QR on left and right.
+  // The slight overlap hides the gap between circles and square → clean heart silhouette.
 
-  const BUMP_LEFT  = 260;   // left edge of left bump  → right edge = 260+240 = 500
-  const BUMP_RIGHT = 500;   // left edge of right bump → right edge = 500+240 = 740
-  const BUMP_TOP   = 40;
-  const MAIN_LEFT  = 220;   // (1000-560)/2
-  const MAIN_TOP   = 380;
+  const MAIN_LEFT  = (CANVAS - MAIN_SZ) / 2;       // 220
+  const CIRC_TOP   = 60;
+  const L_LEFT     = MAIN_LEFT;                     // 220
+  const R_LEFT     = MAIN_LEFT + CIRCLE_D;          // 500
+  const MAIN_TOP   = CIRC_TOP + CIRCLE_D - 20;      // 320
 
   const result = await sharp({
-    create: { width: 1000, height: 1000, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
+    create: { width: CANVAS, height: CANVAS, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
   })
     .composite([
-      { input: leftHalf,  left: BUMP_LEFT,  top: BUMP_TOP },
-      { input: rightHalf, left: BUMP_RIGHT, top: BUMP_TOP },
-      { input: mainBuf,   left: MAIN_LEFT,  top: MAIN_TOP },
+      { input: circularQR, left: L_LEFT,    top: CIRC_TOP },   // left bump
+      { input: circularQR, left: R_LEFT,    top: CIRC_TOP },   // right bump
+      { input: mainBuf,    left: MAIN_LEFT, top: MAIN_TOP  },  // scannable QR
     ])
     .flatten({ background: { r: 255, g: 255, b: 255 } })
     .png()
