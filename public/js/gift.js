@@ -445,12 +445,17 @@ function initMagazine() {
     el.addEventListener('touchmove',  e => e.stopPropagation(), { passive: true });
   });
 
-  // Re-calculate layout on resize / fullscreen toggle
+  // Re-calculate layout on resize / fullscreen toggle / orientation change
   let _resizeTimer;
-  window.addEventListener('resize', () => {
+  const _reflow = () => {
     clearTimeout(_resizeTimer);
-    _resizeTimer = setTimeout(() => { if (pageFlip) pageFlip.update(); }, 120);
-  });
+    _resizeTimer = setTimeout(() => { if (pageFlip) pageFlip.update(); }, 150);
+  };
+  window.addEventListener('resize', _reflow);
+  // orientationchange fires on phones/tablets when they rotate
+  window.addEventListener('orientationchange', () => setTimeout(_reflow, 300));
+  // screen.orientation API (more reliable on modern devices)
+  if (screen.orientation) screen.orientation.addEventListener('change', () => setTimeout(_reflow, 300));
 }
 
 function updatePageIndicator(pageIndex) {
@@ -523,11 +528,27 @@ function showToast(msg) {
 function playYouTubeInMag(el) {
   const vid = el.dataset.vid;
   if (!vid) return;
-  el.outerHTML = `<div class="mag-yt-iframe-wrap">
-    <iframe src="https://www.youtube.com/embed/${vid}?autoplay=1"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowfullscreen frameborder="0"></iframe>
-  </div>`;
+
+  const SONG_PAGE = 6; // 0-based index of the song page
+
+  const loadIframe = () => {
+    // Re-query in case the DOM shifted after a page flip
+    const target = document.querySelector(`.yt-poster[data-vid="${vid}"]`);
+    if (!target) return;
+    target.outerHTML = `<div class="mag-yt-iframe-wrap">
+      <iframe src="https://www.youtube.com/embed/${vid}?autoplay=1"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen frameborder="0"></iframe>
+    </div>`;
+  };
+
+  // If already on the song page, play immediately; otherwise flip there first.
+  if (pageFlip && pageFlip.getCurrentPageIndex() !== SONG_PAGE) {
+    pageFlip.turnToPage(SONG_PAGE);
+    setTimeout(loadIframe, 900); // wait for flip animation (flippingTime = 800ms)
+  } else {
+    loadIframe();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════

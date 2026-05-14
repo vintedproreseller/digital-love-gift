@@ -1423,6 +1423,49 @@ body.theme-proposal  { --occ-primary:#b45309; --occ-secondary:#78350f; --occ-bg:
   .polaroid-caption{font-size:.75rem}
 }
 
+/* ── LANDSCAPE MOBILE / TABLET ─────────────────────────────── */
+/* Fires when the device is held horizontally and the viewport is short
+   (phones in landscape, small iPads in landscape split-view).          */
+@media (orientation: landscape) and (max-height: 600px) {
+  /* Give the magazine as much vertical room as possible */
+  .mag-content{
+    height:100dvh;
+    overflow:hidden;
+  }
+  .magazine-scene{
+    padding:1px 0;
+    /* fill remaining height after the slim controls bar */
+    flex:1;
+    min-height:0;
+  }
+  /* Collapse controls bar to a thin strip */
+  .mag-controls{
+    height:22px;
+    font-size:.72rem;
+  }
+  /* Shrink nav arrows further */
+  .mag-nav{
+    width:26px;
+    height:26px;
+    font-size:.75rem;
+  }
+  /* Reduce inner page padding so text isn't crushed */
+  .page-inner-scroll{
+    padding:10px 12px 12px;
+    font-size:.85rem;
+  }
+  /* Scale down display text */
+  .cover-title{font-size:1.6rem}
+  .mag-heading{font-size:1.4rem}
+  .drop-cap{font-size:2.6rem}
+  .mag-poem{font-size:.9rem}
+  .final-msg{font-size:1.2rem}
+  .letter-body{font-size:.82rem;line-height:1.6}
+  .polaroid{width:80px}
+  .polaroid img{height:60px}
+  .cover-emoji{font-size:2rem}
+}
+
 /* ── HEART QR PANEL ────────────────────────────────────────── */
 .qr-panel{
   display:flex;
