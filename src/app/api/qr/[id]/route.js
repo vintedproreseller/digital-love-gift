@@ -9,14 +9,6 @@ function xe(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// Returns true if the normalised point (px, py) ∈ [-1,1]² is inside the heart.
-// y-axis is flipped and shifted up slightly so the heart is centred vertically.
-function insideHeart(px, py) {
-  const x = px;
-  const y = -py + 0.1;
-  return Math.pow(x * x + y * y - 1, 3) - x * x * y * y * y <= 0;
-}
-
 export async function GET(request, { params }) {
   const { id } = await params;
 
@@ -25,62 +17,57 @@ export async function GET(request, { params }) {
     : new URL(request.url).origin;
   const giftUrl = `${origin}/gift/${id}`;
 
-  let qr;
-  try {
-    qr = QRCode.create(giftUrl, { errorCorrectionLevel: 'H' });
-  } catch {
-    return new Response('QR generation failed', { status: 500 });
-  }
+  const qrOpts = { errorCorrectionLevel: 'H', margin: 1, color: { dark: '#c8185a', light: '#ffffff' } };
 
-  const size    = qr.modules.size;
-  const modules = qr.modules.data;
+  // Generate three QR buffers for the same URL
+  const [mainBuf, bumpBuf] = await Promise.all([
+    QRCode.toBuffer(giftUrl, { ...qrOpts, width: 560 }),
+    QRCode.toBuffer(giftUrl, { ...qrOpts, width: 480 }),
+  ]);
 
-  const CANVAS       = 1000;
-  const modulePixels = CANVAS / size;
-  const PADDING      = 0.08;
+  // Bump radius = half the bump QR width
+  const BUMP  = 240;   // half of 480
+  const BUMP_FULL = 480;
 
-  // Debug: check all three finder pattern corners are inside the heart
-  const finderCorners = [
-    { label: 'top-left',     col: 3,          row: 3          },
-    { label: 'top-right',    col: size - 4,   row: 3          },
-    { label: 'bottom-left',  col: 3,          row: size - 4   },
-  ];
-  finderCorners.forEach(({ label, col, row }) => {
-    const nx = ((col + 0.5) / size) * (2 - PADDING * 2) - (1 - PADDING);
-    const ny = ((row + 0.5) / size) * (2 - PADDING * 2) - (1 - PADDING);
-    console.log(`Finder pattern coverage: ${label} (${col},${row}) nx=${nx.toFixed(3)} ny=${ny.toFixed(3)} inside=${insideHeart(nx, ny)}`);
-  });
+  // Left bump  = left  half of bumpBuf (cols 0..239)
+  // Right bump = right half of bumpBuf (cols 240..479)
+  const [leftHalf, rightHalf] = await Promise.all([
+    sharp(bumpBuf).extract({ left: 0,    top: 0, width: BUMP, height: BUMP_FULL }).toBuffer(),
+    sharp(bumpBuf).extract({ left: BUMP, top: 0, width: BUMP, height: BUMP_FULL }).toBuffer(),
+  ]);
 
-  // Build SVG rects — pink for dark modules, white for light, nothing outside heart
-  const rects = [];
-  for (let row = 0; row < size; row++) {
-    for (let col = 0; col < size; col++) {
-      const nx = ((col + 0.5) / size) * (2 - PADDING * 2) - (1 - PADDING);
-      const ny = ((row + 0.5) / size) * (2 - PADDING * 2) - (1 - PADDING);
+  // ── Layout ──────────────────────────────────────────────────────────────────
+  // Canvas: 1000 × 1000 white
+  // Two bumps sit on top, touching at x = 500.
+  // Main 560×560 QR below, centered, slightly overlapping the bumps.
+  //
+  //   left bump  right bump
+  //    x=260        x=500       (each 240 px wide, so right edge of left = 500)
+  //    y=40         y=40        top of bumps
+  //
+  //   main QR
+  //    x=220  y=380             centered: (1000-560)/2 = 220
+  //                             top of main overlaps bottom of bumps
 
-      if (!insideHeart(nx, ny)) continue;
+  const BUMP_LEFT  = 260;   // left edge of left bump  → right edge = 260+240 = 500
+  const BUMP_RIGHT = 500;   // left edge of right bump → right edge = 500+240 = 740
+  const BUMP_TOP   = 40;
+  const MAIN_LEFT  = 220;   // (1000-560)/2
+  const MAIN_TOP   = 380;
 
-      const isDark = modules[row * size + col];
-      const fill   = isDark ? '#c8185a' : 'white';
-      const x      = (col * modulePixels).toFixed(2);
-      const y      = (row * modulePixels).toFixed(2);
-      const s      = modulePixels.toFixed(2);
-      rects.push(`<rect x="${x}" y="${y}" width="${s}" height="${s}" fill="${fill}"/>`);
-    }
-  }
-
-  const svg = `<svg width="1000" height="1000" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1000" height="1000" fill="white"/>
-  ${rects.join('\n  ')}
-</svg>`;
-
-  const png = await sharp(Buffer.from(svg))
-    .resize(1000, 1000)
+  const result = await sharp({
+    create: { width: 1000, height: 1000, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
+  })
+    .composite([
+      { input: leftHalf,  left: BUMP_LEFT,  top: BUMP_TOP },
+      { input: rightHalf, left: BUMP_RIGHT, top: BUMP_TOP },
+      { input: mainBuf,   left: MAIN_LEFT,  top: MAIN_TOP },
+    ])
     .flatten({ background: { r: 255, g: 255, b: 255 } })
-    .png({ compressionLevel: 9 })
+    .png()
     .toBuffer();
 
-  return new Response(png, {
+  return new Response(result, {
     headers: {
       'Content-Type':  'image/png',
       'Cache-Control': 'public, max-age=300',
