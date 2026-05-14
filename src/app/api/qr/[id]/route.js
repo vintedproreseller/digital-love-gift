@@ -45,40 +45,44 @@ export async function GET(request, { params }) {
 
   // ── SVG layout (900×900 canvas) ─────────────────────────────────────────────
   //
-  //  Two circle clips at (225,225) and (675,225) r=225 form the top bumps.
-  //  The QR for each bump is rotated ±90° so it fills the circle visually.
+  //  Left  circle: cx=225, cy=220, r=225  → right edge exactly at x=450
+  //  Right circle: cx=675, cy=220, r=225  → left  edge exactly at x=450
+  //  Both circles touch at (450, 220) — the center dip of the heart.
   //
-  //  The diamond is the same QR rotated 45°, centered at (450,536).
-  //  y=536 is chosen so the diamond's top vertex lands at y≈225,
-  //  exactly where the two circles meet — closing the heart at the center dip.
+  //  Diamond: QR rotated 45°, scale=0.78 so its width when rotated ≈ 440px
+  //  (matching the combined width of the two bump circles).
+  //  Half-diagonal = 200 × 0.78 × √2 ≈ 221px, so:
+  //    top    vertex → y = 580 − 221 ≈ 359  (overlaps circle bottoms at y≈445)
+  //    bottom vertex → y = 580 + 221 ≈ 801  (heart point)
+  //    left/right    → x = 450 ± 221 → 229 … 671
   //
-  //  All three pieces are the same QR code (same URL, ECC H) in hot pink.
-  //  Only the diamond is scannable; the bumps are decorative.
+  //  The overlap between circles (bottom) and diamond (top) is all-pink so
+  //  the pieces merge seamlessly with no white gap.
 
   const svg = `<svg width="900" height="900" viewBox="0 0 900 900" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <clipPath id="lc"><ellipse cx="225" cy="225" rx="225" ry="225"/></clipPath>
-    <clipPath id="rc"><ellipse cx="675" cy="225" rx="225" ry="225"/></clipPath>
+    <clipPath id="lc"><circle cx="225" cy="220" r="225"/></clipPath>
+    <clipPath id="rc"><circle cx="675" cy="220" r="225"/></clipPath>
   </defs>
   <rect width="900" height="900" fill="white"/>
 
-  <!-- Left bump: QR rotated -90°, clipped to left circle -->
+  <!-- Left bump: QR rotated -90°, clipped to left circle (right edge at x=450) -->
   <g clip-path="url(#lc)" fill="#c8185a">
-    <g transform="translate(225,225) rotate(-90) translate(-200,-200)">
+    <g transform="translate(225,220) rotate(-90) translate(-200,-200)">
       ${rects}
     </g>
   </g>
 
-  <!-- Right bump: QR rotated +90°, clipped to right circle -->
+  <!-- Right bump: QR rotated +90°, clipped to right circle (left edge at x=450) -->
   <g clip-path="url(#rc)" fill="#c8185a">
-    <g transform="translate(675,225) rotate(90) translate(-200,-200)">
+    <g transform="translate(675,220) rotate(90) translate(-200,-200)">
       ${rects}
     </g>
   </g>
 
-  <!-- Diamond: QR rotated 45° — the scannable piece -->
+  <!-- Diamond: QR rotated 45°, scale 0.78 — the scannable piece -->
   <g fill="#c8185a">
-    <g transform="translate(450,536) rotate(45) scale(1.1) translate(-200,-200)">
+    <g transform="translate(450,580) rotate(45) scale(0.78) translate(-200,-200)">
       ${rects}
     </g>
   </g>
